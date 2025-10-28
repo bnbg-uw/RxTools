@@ -1,0 +1,3 @@
+[submodule "src/LapisGis"]
+	path = src/LapisGis
+	url = https://github.com/jontkane/LapisGis
