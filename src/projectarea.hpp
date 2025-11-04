@@ -5,7 +5,6 @@
 
 #include "licosim/lmu.hpp"
 #include "shapefile/shapefile.h"
-#include <set>
 
 namespace licosim {
 class ProjectArea {

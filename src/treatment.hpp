@@ -3,15 +3,11 @@
 #ifndef licosim_treatment_h
 #define licosim_treatment_h
 
-#include <stdexcept>
-#include <random>
-#include <unordered_set>
+#include "rxtools_pch.hpp"
 #include "lico/LICO.hpp"
 #include "licosim/rxunit.hpp"
 #include "licosim/structuresummary.hpp"
 #include<LICO/GraphLico.hpp>
-#include<limits>
-#include<random>
 
 // Need to go through and see where I can pass by reference for memory (and some speed) optimization
 namespace licosim {

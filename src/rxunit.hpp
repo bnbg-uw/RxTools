@@ -10,11 +10,6 @@
 #include "licosim/allometry.hpp"
 #include "lico/GraphLico.hpp"
 #include "coregap/CoreGap.hpp"
-#include "boost/geometry.hpp"
-
-#include <vector>
-#include <string>
-#include <algorithm>
 
 namespace licosim {
     typedef boost::geometry::model::multi_point<StructureSummary> StructureMultiPoint_t;

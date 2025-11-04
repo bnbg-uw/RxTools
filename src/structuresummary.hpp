@@ -1,6 +1,5 @@
 #pragma once
-#include "boost/geometry/geometry.hpp"
-#include "boost/geometry/geometries/point.hpp"
+#include "rxtools_pch.hpp"
 
 namespace licosim {
     namespace bg = boost::geometry;

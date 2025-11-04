@@ -7,10 +7,8 @@
 #ifndef licosim_projectsettings_h
 #define licosim_projectsettings_h
 
-#include <string>
-#include <vector>
 #include <cxxopts/cxxopts.hpp>
-#include <filesystem>
+
 
 namespace licosim {
     struct ProjectSettings {

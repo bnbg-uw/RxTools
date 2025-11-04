@@ -7,10 +7,6 @@
 #include "licosim/treatment.hpp"
 #include "licosim/utilities.hpp"
 #include "ProcessedFolder/ProcessedFolder.hpp"
-#include "boost/geometry.hpp"
-#include <vector>
-#include <random>
-#include <chrono>
 
 namespace licosim {
 
