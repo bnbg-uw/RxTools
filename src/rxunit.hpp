@@ -1,24 +1,28 @@
 #pragma once
 
-#ifndef licosim_rxunit_h
-#define licosim_rxunit_h
+#ifndef rxtools_rxunit_h
+#define rxtools_rxunit_h
 
 #include "lico/LICO.hpp"
 #include "landscapemetrics/landscapemetrics.hpp"
-#include "shapefile/shapefile.h"
-#include "licosim/structuresummary.hpp"
-#include "licosim/allometry.hpp"
+#include "structuresummary.hpp"
+#include "models.hpp"
 #include "lico/GraphLico.hpp"
 #include "coregap/CoreGap.hpp"
 
-namespace licosim {
+namespace rxtools {
     typedef boost::geometry::model::multi_point<StructureSummary> StructureMultiPoint_t;
     typedef boost::geometry::model::polygon<StructureSummary> StructurePolygon_t;
 
-    using dbhFunction = std::function<std::vector<double>(lico::adapt_type<spatial::unit_t>)>;
-
-    inline void writeFastFuelsCsv(std::string path, lico::TaoList tl, fastFuelsAllometry ffa, dbhFunction dbhFunc) {
-        auto dbh = dbhFunc(tl.height());
+    // Columns and units for this csv should be:
+    // SPCD     (species code as int)
+    // Dia_cm   (diameter in centimeters)
+    // HT_m     (height in meters)
+    // STATUSCD (Live/Dead - 1 for live.  2 for dead I think? double check if mortality is introduced)
+    // CBH_m    (Canopy base height in meters)
+    // X_m, Y_m (X and Y locations in meters- idk if the units matter for this one?)
+    inline void writeFastFuelsCsv(std::string path, lico::TaoList tl, allometry::FastFuels ffa, allometry::Model* dbhModel) {
+        auto dbh = dbhModel->predict(tl.height());
 
         std::ofstream out;
         out.open(path);
@@ -81,7 +85,7 @@ public:
     RxUnit(std::string path, dbhFunction dbhf);
 
     std::pair<StructureSummary, StructureSummary> getVirtualMinMax(std::default_random_engine dre, double bbDbh);
-    StructureSummary summarizeStructure(lico::TaoList& tl, double osi, dbhFunction dbhFunc) const;
+    StructureSummary summarizeStructure(lico::TaoList& tl, double osi, , allometry::Model* dbhModel) const;
     //StructurePolygon_t getTreatmentEnvelope(std::default_random_engine dre, std::string objective = "random", double bb_dbh = 21);
     //spatial::Raster<int> makeChm(spatial::Raster<int> chm, lico::TaoList tl);
 
@@ -91,6 +95,6 @@ private:
     double calcOsi(spatial::Raster<int> chm) const;
 
 };
-} // namespace licosim
+} // namespace rxtools
 
-#endif // licosim_rxunit_h
+#endif // rxtools_rxunit_h

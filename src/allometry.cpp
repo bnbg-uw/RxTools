@@ -1,11 +1,10 @@
-
 #include "allometry.hpp"
 
 namespace rxtools::allometry {
-    std::vector<double> Model::predict(const std::vector<double> x, const bool metric) {
+    std::vector<double> Model::predict(const std::vector<double>& x, const lapis::LinearUnit& thisUnit, const lapis::LinearUnit& returnUnit) {
         std::vector<double> out;
         for (std::size_t i = 0; i < x.size(); i++) {
-            out.push_back(predict(x[i], metric));
+            out.push_back(predict(x[i], thisUnit, returnUnit));
         }
         return out;
     }

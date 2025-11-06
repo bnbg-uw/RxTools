@@ -1,7 +1,7 @@
 #pragma once
 #include "rxtools_pch.hpp"
 
-namespace licosim {
+namespace rxtools {
     namespace bg = boost::geometry;
 
     struct StructureSummary : public bg::model::point<double, 4, bg::cs::cartesian> {
@@ -87,35 +87,35 @@ namespace boost {
         namespace traits {
 
             template<>
-            struct tag<licosim::StructureSummary>
+            struct tag<rxtools::StructureSummary>
             {
                 typedef point_tag type;
             };
 
             template<>
-            struct coordinate_type<licosim::StructureSummary>
+            struct coordinate_type<rxtools::StructureSummary>
             {
                 typedef double type;
             };
 
             template<>
-            struct coordinate_system<licosim::StructureSummary>
+            struct coordinate_system<rxtools::StructureSummary>
             {
                 typedef cs::cartesian type;
             };
 
             template<>
-            struct dimension<licosim::StructureSummary> : boost::mpl::int_<4> {};
+            struct dimension<rxtools::StructureSummary> : boost::mpl::int_<4> {};
 
             template<std::size_t K>
-            struct access<licosim::StructureSummary, K>
+            struct access<rxtools::StructureSummary, K>
             {
-                static inline double get(licosim::StructureSummary const& p)
+                static inline double get(rxtools::StructureSummary const& p)
                 {
                     return p.template get<K>();
                 }
 
-                static inline void set(licosim::StructureSummary& p, double const& v)
+                static inline void set(rxtools::StructureSummary& p, double const& v)
                 {
                     p.template set<K>(v);
                 }

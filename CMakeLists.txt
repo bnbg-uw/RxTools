@@ -14,3 +14,24 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_BINARY_DIR})
 
 include(RxTools.cmake)
+
+add_library(RxTools STATIC ${RXTOOLS_SOURCES})
+target_include_directories(RxTools PRIVATE ${RXTOOLS_EXTERNAL_INCLUDES})
+target_precompile_headers(RxTools PRIVATE ${RXTOOLS_DIR}/src/rxtools_pch.hpp)
+
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/rxtools.cmake
+     DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/.gitignore
+     DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/.gitmodules
+     DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/LICENSE.txt
+     DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/README.md
+     DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+
+if (MSVC)
+	target_compile_options(RxTools PRIVATE /W3 /WX)
+else()
+	target_compile_options(RxTools PRIVATE -Wall -Wextra -Werror)
+endif()

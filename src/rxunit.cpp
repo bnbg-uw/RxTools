@@ -1,8 +1,8 @@
-#include "licosim/rxunit.hpp"
+#include "rxunit.hpp"
 
-namespace licosim {
+namespace rxtools {
 
-    StructureSummary RxUnit::summarizeStructure(lico::TaoList& tl, double osi, dbhFunction dbhFunc) const {
+    StructureSummary RxUnit::summarizeStructure(lico::TaoList& tl, double osi, , allometry::Model* dbhModel) const {
         auto sd = lico::SparseDistMatrix();
         sd.nearDist(tl.x(), tl.y(), tl.crown(), false);
 
