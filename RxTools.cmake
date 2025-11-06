@@ -7,6 +7,7 @@ file(GLOB RXTOOLS_SOURCES
 	${RXTOOLS_DIR}/src/*.cpp)
 
 include("${RXTOOLS_DIR}/src/LapisGis/LapisGis.cmake")
+include("${RXTOOLS_DIR}/src/lico/lico.cmake")
 
 find_package(Eigen3 REQUIRED)
 
