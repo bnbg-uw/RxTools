@@ -1,73 +1,62 @@
 #include "lmu.hpp"
 
 
-namespace licosim {
+namespace rxtools {
 
-    Lmu::Lmu(std::string path, dbhFunction dbhf) {
+    Lmu::Lmu(std::string path, TaoGetters<lapis::VectorDataset<lapis::Point>> getters) {
         try {
-            mask = spatial::Raster<int>(path + "ridgeTop.img");
+            mask = lapis::Raster<int>(path + "ridgeTop.img");
             type = LmuType::ridgeTop;
         }
-        catch (spatial::InvalidRasterFileException e) {
+        catch (lapis::InvalidRasterFileException e) {
             try {
-                mask = spatial::Raster<int>(path + "valleyBottom.img");
+                mask = lapis::Raster<int>(path + "valleyBottom.img");
                 type = LmuType::valleyBottom;
             }
-            catch (spatial::InvalidRasterFileException e) {
+            catch (lapis::InvalidRasterFileException e) {
                 try {
-                    mask = spatial::Raster<int>(path + "swFacing.img");
+                    mask = lapis::Raster<int>(path + "swFacing.img");
                     type = LmuType::swFacing;
                 }
-                catch (spatial::InvalidRasterFileException e) {
-                    mask = spatial::Raster<int>(path + "nwFacing.img");
+                catch (lapis::InvalidRasterFileException e) {
+                    mask = lapis::Raster<int>(path + "nwFacing.img");
                     type = LmuType::neFacing;
                 }
             }
         }
-        auto p = boost::filesystem::path(path);
+        auto p = std::filesystem::path(path);
         p /= "units";
-        for (auto& entry : boost::make_iterator_range(boost::filesystem::directory_iterator(p), {})) {
-            auto rx = RxUnit(entry.path().string(), dbhf);
+        for (auto& entry : std::filesystem::directory_iterator(p)) {
+            auto rx = RxUnit(entry.path().string(), getters);
             units.push_back(rx);
         }
     }
 
-    void Lmu::makeUnits(spatial::SpVectorDataset<spatial::SpMultiPolygon> unitsPoly, lico::TaoList tl, spatial::Raster<int> osiNum, spatial::Raster<int> osiDen, double convFactor, dbhFunction dbhFunc, bool overrideTargets) {
+    void Lmu::makeUnits(lapis::VectorDataset<lapis::MultiPolygon> unitsPoly, TaoList<lapis::VectorDataset<lapis::Point>> tl, lapis::Raster<int> osiNum, lapis::Raster<int> osiDen, double convFactor, bool overrideTargets) {
         if (units.size()) throw std::runtime_error("Units have already been calculated");
-        units.reserve(unitsPoly.nFeatures());
-        int baCol = -1;
-        int dbhMinCol = -1;
-        int dbhMaxCol = -1;
-        for (int i = 0; i < unitsPoly.colNames().size(); i++) {
-            if (unitsPoly.colNames()[i] == "ba")
-                baCol = i;
-            if (unitsPoly.colNames()[i] == "dbhMin")
-                dbhMinCol = i;
-            if (unitsPoly.colNames()[i] == "dbhMax")
-                dbhMaxCol = i;
-        }
+        units.reserve(unitsPoly.nFeature());
         
-        for (int i = 0; i < unitsPoly.nFeatures(); i++) {
-            if (unitsPoly[i].geom.overlaps(mask)) {
+        for (int i = 0; i < unitsPoly.nFeature(); i++) {
+            if (unitsPoly.getFeature(i).getGeometry().boundingBox().overlaps(mask)) {
                 auto unitMask = mask;
-                unitMask.extend(unitsPoly[i].geom);
+                unitMask = lapis::extendRaster(unitMask, unitsPoly.getFeature(i).getGeometry().boundingBox(), lapis::SnapType::out);
                 auto x = std::chrono::high_resolution_clock::now().time_since_epoch().count();
-                unitMask.crop(unitsPoly[i].geom);
-                unitMask.mask(unitsPoly[i].geom);
-                if (!unitMask.anyHasValue())
+                unitMask = lapis::cropRaster(unitMask, unitsPoly.getFeature(i).getGeometry().boundingBox(), lapis::SnapType::out);
+                unitMask.mask(unitsPoly.getFeature(i).getGeometry());
+                if (!unitMask.hasAnyValue())
                     continue;
 
                 unitMask.trim();
 
-                auto thisNum = spatial::crop(osiNum, unitMask);
-                auto thisDen = spatial::crop(osiDen, unitMask);
+                auto thisNum = lapis::cropRaster(osiNum, unitMask, lapis::SnapType::out);
+                auto thisDen = lapis::cropRaster(osiDen, unitMask, lapis::SnapType::out);
                 thisNum.mask(unitMask);
                 thisDen.mask(unitMask);
                 double num = 0;
                 double den = 0;
 
 
-                for (spatial::cell_t x = 0; x < thisNum.ncell(); ++x) {
+                for (lapis::cell_t x = 0; x < thisNum.ncell(); ++x) {
                     if (thisNum[x].has_value()) {
                         num += thisNum[x].value();
                         den += thisDen[x].value();
@@ -76,20 +65,26 @@ namespace licosim {
                 double osi = num / den * 100;
 
                 try {
-                    auto rx = RxUnit(unitMask, tl, osi, convFactor, dbhFunc);
+                    auto rx = RxUnit(unitMask, tl, osi, convFactor);
                     if (rx.areaHa > 0.5) {
                         units.push_back(rx);
                         if (overrideTargets) {
-                            if (baCol >= 0)
-                                units[units.size() - 1].targetStructure.ba = unitsPoly[i].getAttributeAsDouble(baCol);
-                            if (dbhMaxCol >= 0)
-                                units[units.size() - 1].dbhMax = unitsPoly[i].getAttributeAsDouble(dbhMaxCol);
-                            if (dbhMinCol >= 0)
-                                units[units.size() - 1].dbhMin = unitsPoly[i].getAttributeAsDouble(dbhMinCol);
+                            try {
+                                units[units.size() - 1].targetStructure.ba = unitsPoly.getNumericField<double>(i, "ba");
+                            }
+                            catch (std::out_of_range) {}
+                            try {
+                                units[units.size() - 1].dbhMax = unitsPoly.getNumericField<double>(i, "dbhMax");
+                            }
+                            catch (std::out_of_range) {}
+                            try {
+                                units[units.size() - 1].dbhMin = unitsPoly.getNumericField<double>(i, "dbhMin");
+                            }
+                            catch (std::out_of_range) {}
                         }
                     }
                 }
-                catch (lidar::FileNotFoundException e) {
+                catch (processedfolder::FileNotFoundException e) {
                     continue;
                 }
             }
@@ -140,7 +135,7 @@ namespace licosim {
             if (outerIdx.size()) {
                 std::cout << "Choosing random target from options\n";
                 std::vector<double> w(1, outerIdx.size());
-                j = outerIdx[randomIdxFromWeights(w, dre)];
+                j = outerIdx[utilities::randomIdxFromWeights(w, dre)];
                 units[i].paired = true;
             }
             else {
@@ -158,7 +153,7 @@ namespace licosim {
         }
     }
 
-    void Lmu::write(std::string path, fastFuelsAllometry ffa) {
+    void Lmu::write(std::string path, allometry::FastFuels ffa) {
         std::string t;
         if (type == LmuType::all)
             t = "all";
@@ -185,7 +180,7 @@ namespace licosim {
 
         for (int i = 0; i < units.size(); ++i) {
             auto p = path + "/units/" + std::to_string(i);
-            boost::filesystem::create_directories(p);
+            std::filesystem::create_directories(p);
             units[i].write(p, ffa);
         }
     }

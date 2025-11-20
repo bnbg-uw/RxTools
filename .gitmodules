@@ -1,6 +1,0 @@
-[submodule "src/LapisGis"]
-	path = src/LapisGis
-	url = https://github.com/jontkane/LapisGis
-[submodule "src/lico"]
-	path = src/lico
-	url = https://github.com/jontkane/lico

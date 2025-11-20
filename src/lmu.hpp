@@ -1,21 +1,22 @@
 #pragma once
 
-#ifndef licosim_lmu_h
-#define licosim_lmu_h
+#ifndef rxtools_lmu_h
+#define rxtools_lmu_h
 
-#include "shapefile/shapefile.h"
-#include "licosim/treatment.hpp"
-#include "licosim/utilities.hpp"
-#include "ProcessedFolder/ProcessedFolder.hpp"
+#include "rxtools_pch.hpp"
+#include "treatment.hpp"
+#include "utilities.hpp"
+#include "rxunit.hpp"
+#include "ProcessedFolder/src/ProcessedFolder.hpp"
 
-namespace licosim {
+namespace rxtools {
 
 enum class LmuType { valleyBottom, ridgeTop, neFacing, swFacing, all };
 
 class Lmu {
 public:
     std::vector<RxUnit> units;
-    spatial::Raster<int> mask;
+    lapis::Raster<int> mask;
     LmuType type = LmuType::all;
     
     //assigned reference area observed structures, and associated weights
@@ -23,13 +24,13 @@ public:
     std::vector<StructureSummary> structures;
 
     Lmu() {};
-    Lmu(spatial::Raster<int> mask, LmuType t) : mask(mask), type(t) {};
-    Lmu(std::string path, dbhFunction dbhf);
+    Lmu(lapis::Raster<int> mask, LmuType t) : mask(mask), type(t) {};
+    Lmu(std::string path, TaoGetters<lapis::VectorDataset<lapis::Point>> getters);
 
-    void makeUnits(spatial::SpVectorDataset<spatial::SpMultiPolygon> unitsPoly, lico::TaoList tl, spatial::Raster<int> osiNum, spatial::Raster<int> osiDen, double convFactor, dbhFunction dbhFunc, bool overrideTargets);
+    void makeUnits(lapis::VectorDataset<lapis::MultiPolygon> unitsPoly, TaoList<lapis::VectorDataset<lapis::Point>> tl, lapis::Raster<int> osiNum, lapis::Raster<int> osiDen, double convFactor, bool overrideTargets);
 
     template<class T>
-    void makeUnits(spatial::Raster<T> unitsRaster, lico::TaoList tl, spatial::Raster<int> osiNum, spatial::Raster<int> osiDen, double convFactor, dbhFunction dbhFunc) {
+    void makeUnits(lapis::Raster<T> unitsRaster, TaoList<lapis::VectorDataset<lapis::Point>> taos, lapis::Raster<int> osiNum, lapis::Raster<int> osiDen, double convFactor) {
         if (units.size()) throw std::runtime_error("Units have already been calculated");
 
         if (!unitsRaster.overlaps(mask)) throw spatial::OutsideExtentException();
@@ -70,8 +71,8 @@ public:
 
     void assignUnitTargets(std::default_random_engine dre, double bb_dbh, bool overrideTargets);
 
-    void write(std::string path, fastFuelsAllometry ffa);
+    void write(std::string path, allometry::FastFuels ffa);
 };
-} //namespace licosim 
+} //namespace rxtools 
 
-#endif //!licosim_lmu_h
+#endif //!rxtools_lmu_h

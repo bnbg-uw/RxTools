@@ -1,5 +1,12 @@
 #pragma once
+
+#ifndef rxtools_structuresummary_h
+#define rxtools_structuresummary_h
+
 #include "rxtools_pch.hpp"
+#include "LapisGis/src/Raster.hpp"
+#include "allometry.hpp"
+#include "lico/src/GraphLico.hpp"
 
 namespace rxtools {
     namespace bg = boost::geometry;
@@ -37,6 +44,78 @@ namespace rxtools {
             if (csd.size() != binMins.size() || csd.size() != binMaxs.size())
                 throw std::invalid_argument("csd, binmins, and binmaxs should all have equal size.");
         };
+
+        StructureSummary(const lapis::VectorDataset<lapis::Point>& taos,
+            const lapis::lico::TaoNodeFactory<lapis::VectorDataset<lapis::Point>>& tnf,
+            const allometry::Model* dbhModel,
+            const lapis::Alignment& unitAlign,
+            double areaHa,
+            double maxCrown = 3,
+            double osi = -1
+            )
+        {
+            lapis::lico::GraphLico g{ unitAlign };
+            g.addDataset(taos, tnf, lapis::lico::NodeStatus::on);
+
+            double ba;
+            double mcs;
+            double tph;
+            double cc;
+            try {
+                mcs = 0;
+                cc = 0;
+                ba = 0;
+                for (size_t i = 0; i < g.nodes.size(); ++i) {
+                    mcs += g.nodes.at(i).clumpSize();
+                    cc += g.nodes.at(i).area;
+                    ba += g.nodes.at(i).ba;
+                }
+                mcs /= static_cast<double>(g.nodes.size());
+
+                come back here to verify unit conversion;
+                cc = cc / 10000. / areaHa;
+            }
+            catch (std::bad_alloc e) {
+                std::cout << "ba/mcs\n";
+                throw e;
+            }
+            catch (std::exception e) {
+                std::cout << e.what();
+                throw e;
+            }
+
+            tph = g.nodes.size() / areaHa;
+
+            std::vector<double> csd(6, 0);
+
+            try {
+
+                for (int i = 0; i < clumps.clumpSize.size(); i++) { //TODO: don't hardcode these bins
+                    if (clumps.clumpSize[i] == 1)
+                        csd[0]++;
+                    else if (clumps.clumpSize[i] < 5)
+                        csd[1]++;
+                    else if (clumps.clumpSize[i] < 10)
+                        csd[2]++;
+                    else if (clumps.clumpSize[i] < 15)
+                        csd[3]++;
+                    else if (clumps.clumpSize[i] < 31)
+                        csd[4]++;
+                    else
+                        csd[5]++;
+                }
+
+                for (int i = 0; i < csd.size(); i++)
+                    csd[i] /= static_cast<double>(clumps.clumpSize.size());
+            }
+            catch (std::bad_alloc e) {
+                std::cout << "csd\n";
+                throw e;
+            }
+
+            auto out = StructureSummary(ba, tph, mcs, osi, cc, csd);
+            return out;
+        }
 
         double operator[](int idx) const {
             if (idx == 0) return ba;
@@ -80,6 +159,26 @@ namespace rxtools {
             {100,  200,  0.1,  0.03, 0.08, 0.59, 0.12, 0.08}
         };
     };
+
+    inline double calcOsi(lapis::Raster<int> chm) {
+        lapis::Alignment thisalign{ unitMask };
+        thisalign.crop(chm, lapis::SnapType::out);
+        thisalign.extend(chm, lapis::SnapType::out);
+        lsmetrics::crop_mw_function<double, int> numFunc = [&](const lsmetrics::crop_view<int>& e)->xtl::xoptional<double> {return lsmetrics::OSInumerator(e, chmres, canopycutoff, coregapdist); };
+        spatial::Raster<double> coreNum = lsmetrics::movingWindowByRaster(chm, thisalign, numFunc, coregapdist);
+        lsmetrics::crop_mw_function<double, int> totalFunc = [&](const lsmetrics::crop_view<int>& e)->xtl::xoptional<double> {return lsmetrics::totalAreaForOSI(e, chmres, coregapdist); };
+        spatial::Raster<double> thistotal = lsmetrics::movingWindowByRaster(chm, thisalign, totalFunc, coregapdist);
+
+        int osinum = 0;
+        int osiden = 0;
+        for (spatial::cell_t i = 0; i < coreNum.ncell(); ++i) {
+            if (coreNum[i].has_value()) {
+                osinum += coreNum[i].value();
+                osiden += thistotal[i].value();
+            }
+        }
+        return (static_cast<double>(osinum) / static_cast<double>(osiden)) * 100.;
+    }
 }
 
 namespace boost {
@@ -122,5 +221,5 @@ namespace boost {
             };
         }
     }
-
-}
+} //namespace rxtools
+#endif //rxtools_structuresummary_h
