@@ -3,7 +3,7 @@
 #ifndef rxtools_taolist_h
 #define rxtools_taolist_h
 
-#include "LapisGis/src/Vector.hpp"
+#include "Vector.hpp"
 #include "lico/src/GraphLico.hpp"
 
 namespace rxtools {
@@ -29,6 +29,11 @@ namespace rxtools {
 
         TaoList() = default;
         TaoList(DATASET t, TaoGetters<DATASET> g) : taoVector(t), getters(g) {}
+        TaoList(std::string f, TaoGetters<DATASET>  g) : taoVector(lapis::VectorDataset<DATASET>(f)), getters(g) {}
+
+        const typename DATASET::ConstFeatureType operator()(size_t i) {
+            return taoVector.getFeature(i);
+        }
 
         const lapis::lico::TaoNode nodeFromIndex(size_t i)  const {
             return lapis::lico::TaoNode(
@@ -86,7 +91,7 @@ namespace rxtools {
         }
     };
 
-    using TaoPointList = TaoList<lapis::VectorDataset<lapis::Point>>;
-    using TaoPointGetters = TaoGetters<lapis::VectorDataset<lapis::Point>>;
+    using TaoListMP = TaoList<lapis::VectorDataset<lapis::MultiPolygon>>;
+    using TaoGettersMP = TaoGetters<lapis::VectorDataset<lapis::MultiPolygon>>;
 } // namespace rxtools
 #endif //rxtools_taolist_h

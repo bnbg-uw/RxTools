@@ -33,7 +33,7 @@ class RxUnit {
 public:
     bool paired = false;
     bool treated = false;
-    TaoList<lapis::VectorDataset<lapis::Point>> taos;
+    TaoListMP taos;
     lapis::Raster<int> unitMask;
     double areaHa = 0;
 
@@ -47,13 +47,13 @@ public:
     StructureSummary currentStructure;
     StructureSummary targetStructure;
 
-    TaoList<lapis::VectorDataset<lapis::Point>> treatedTaos;
+    TaoListMP treatedTaos;
     StructureSummary treatedStructure;
 
     RxUnit() = default;
 
     template<class T>
-    RxUnit(lapis::Raster<T> mask, TaoList<lapis::VectorDataset<lapis::Point>> tl, double osi, double convFactor) {
+    RxUnit(lapis::Raster<T> mask, TaoListMP tl, double osi, double convFactor) {
         is convfactor the correct paradigm still?
         unitMask = mask;
         for (spatial::cell_t i = 0; i < mask.ncell(); i++) {

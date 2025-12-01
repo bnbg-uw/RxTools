@@ -16,7 +16,7 @@ enum class LmuType { valleyBottom, ridgeTop, neFacing, swFacing, all };
 class Lmu {
 public:
     std::vector<RxUnit> units;
-    lapis::Raster<int> mask;
+    lapis::Raster<lapis::cell_t> mask;
     LmuType type = LmuType::all;
     
     //assigned reference area observed structures, and associated weights
@@ -24,7 +24,7 @@ public:
     std::vector<StructureSummary> structures;
 
     Lmu() {};
-    Lmu(lapis::Raster<int> mask, LmuType t) : mask(mask), type(t) {};
+    Lmu(lapis::Raster<lapis::cell_t> mask, LmuType t) : mask(mask), type(t) {};
     Lmu(std::string path, TaoGetters<lapis::VectorDataset<lapis::Point>> getters);
 
     void makeUnits(lapis::VectorDataset<lapis::MultiPolygon> unitsPoly, TaoList<lapis::VectorDataset<lapis::Point>> tl, lapis::Raster<int> osiNum, lapis::Raster<int> osiDen, double convFactor, bool overrideTargets);

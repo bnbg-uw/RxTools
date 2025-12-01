@@ -13,32 +13,31 @@ namespace rxtools {
         mask = lapis::cropRaster(mask, projectPoly.extent(), lapis::SnapType::out);
 
         std::cout << "\t\tReading and resampling climate layers...";
-        auto r = lapis::Raster<double>(aetPath);
-        aet = lapis::Raster<double>(aetPath).resample(mask, lapis::ExtractMethod::bilinear);
-        cwd = lapis::Raster<double>(cwdPath).resample(mask, lapis::ExtractMethod::bilinear);
-        tmn = lapis::Raster<double>(tmnPath).resample(mask, lapis::ExtractMethod::bilinear);
+        aet = lapis::resampleRaster(lapis::Raster<double>(aetPath), mask, lapis::ExtractMethod::bilinear);
+        cwd = lapis::resampleRaster(lapis::Raster<double>(cwdPath), mask, lapis::ExtractMethod::bilinear);
+        tmn = lapis::resampleRaster(lapis::Raster<double>(tmnPath), mask, lapis::ExtractMethod::bilinear);
         std::cout << tmnPath << "\n";
 
         if (lmuPath.empty()) {
             std::cout << "\t\tCreating LMU's:\n";
             lmuRaster = createLmuRasterFromTpiAndAsp(lidarDataset, lmuParam, projectPoly);
-            lmuIds = lsmetrics::connCompLabel(lmuRaster);
+            lmuIds = lapis::connectedComponents(lmuRaster, false);
             std::cout << "\t\tLMU creation done!\n";
             //lmuRaster.writeRaster("E:/yubalmus.img");
         }
         else {
             // check extents etc...
             std::cout << "\t\tReading LMU raster...";
-            lmuRaster = lapis::Raster<int>(lmuPath);
+            lmuRaster = lapis::Raster<lapis::cell_t>(lmuPath);
             if (!lmuRaster.crs().isConsistent(mask.crs()))
-                lmuRaster.resample(mask, lapis::ExtractMethod::near);
+                lmuRaster = lapis::resampleRaster(lmuRaster, mask, lapis::ExtractMethod::near);
             else {
                 lmuRaster = lapis::extendRaster(lmuRaster, mask, lapis::SnapType::out);
                 lmuRaster = lapis::cropRaster(lmuRaster, mask, lapis::SnapType::out);
             }
             lmuRaster.mask(mask);
-            lmuRaster.trim();
-            lmuIds = lsmetrics::connCompLabel(lmuRaster);
+            lmuRaster = lapis::trimRaster(lmuRaster);
+            lmuIds = lapis::connectedComponents(lmuRaster, false);
             std::cout << " Done!\n";
         }
 
@@ -57,7 +56,7 @@ namespace rxtools {
         std::cout << "\t\tProject Area Construction done.\n";
     }
 
-    void ProjectArea::createCoreGapAndReadTaos(int nThread, double bbDbh, TaoPointGetters getters) {
+    void ProjectArea::createCoreGapAndReadTaos(int nThread, double bbDbh, TaoGettersMP getters) {
         std::cout << "\t\tcalculating pretreat OSI and reading taos...\n";
         std::pair<lapis::coord_t, lapis::coord_t> expectedRes{};
         if (lidarDataset->units() == lapis::linearUnitPresets::meter) {
@@ -115,17 +114,20 @@ namespace rxtools {
         
         std::cout << "\t Creating lmu " + std::to_string(sofar) + "/" + std::to_string(regionType.size()) + " " + std::to_string(id) + " on thread " + std::to_string(thisThread) + "\n";
         auto r = lmuIds;
-        xt::filter(r.values(), xt::not_equal(r.values().value(), id)).has_value() = false;
-        r.trim();
+        for (lapis::cell_t c = 0; c < r.ncell(); ++c) {
+            if (r[c].value() != id) {
+                r[c].has_value() = false;
+            }
+        }
+        r = lapis::trimRaster(r);
         return Lmu(r, static_cast<LmuType>(type));
     }
 
-    lapis::Raster<int> ProjectArea::createLmuRasterFromTpiAndAsp(std::unique_ptr<processedfolder::ProcessedFolder>& lds,
+    lapis::Raster<lapis::cell_t> ProjectArea::createLmuRasterFromTpiAndAsp(std::unique_ptr<processedfolder::ProcessedFolder>& lds,
                                                                    std::string terrain,
                                                                    lapis::VectorDataset<lapis::MultiPolygon> projectPoly) {
         double ridgeSep, canyonSep;
-        double ridgeArea = 20000;
-        double canyonArea = 40000;
+
         int expSize = 0;
         if (terrain == "steep") {
             ridgeSep = 25; //ridges
@@ -136,16 +138,20 @@ namespace rxtools {
             canyonSep = 14;
         }
 
-        int tpiDist = 500;
-        int aspDist = 135;
+        double ridgeArea = 20000;
+        double canyonArea = 40000;
+        auto convFactor = lapis::linearUnitPresets::meter.convertOneToThis(1, lds->units());
         if (lds->units() != lapis::linearUnitPresets::meter) {
-            ridgeArea /= (lds->getConvFactor() * lds->getConvFactor());
-            canyonArea /= (lds->getConvFactor() * lds->getConvFactor());
+            ridgeArea /= (convFactor * convFactor);
+            canyonArea /= (convFactor * convFactor);
         }
 
         std::cout << " TPI ";
+        int tpiDist = 500;
+        int aspDist = 135;
         // create ridge groups
-        auto tpi = lapis::Raster<double>(processedfolder::stringOrThrow(lds->tpi(tpiDist, lapis::linearUnitPresets::meter))) / 100. * lds->getConvFactor();
+        make sure lapis tpi works this way;
+        auto tpi = lapis::Raster<double>(processedfolder::stringOrThrow(lds->tpi(tpiDist, lapis::linearUnitPresets::meter))) / 100. * convFactor;
         if (projectPoly.nFeature()) {
             tpi = lapis::cropRaster(tpi, projectPoly.extent(), lapis::SnapType::out);
             //tpi.mask(projectPoly);
@@ -160,16 +166,20 @@ namespace rxtools {
         tpi.mask(aspect);
 
         auto ridge = tpi > ridgeSep;
-        xt::filter(ridge.values(), !ridge.values().value()).has_value() = false;
-        auto ridgeGroup = lsmetrics::connCompLabel(ridge);
+        for (lapis::cell_t c = 0; c < ridge.ncell(); ++c) {
+            if (!ridge[c].value()) {
+                ridge[c].has_value() = false;
+            }
+        }
+        auto ridgeGroup = lapis::connectedComponents(ridge, false);
         // Get unique names of ridges, then remove ridges smaller than min patch size.
         double cellArea = tpi.xres() * tpi.yres();
         int nCellArea = ridgeArea / cellArea;
         std::unordered_map<int, int> regionArea;
-        for (auto v : ridgeGroup.values()) {
-            if (v.has_value()) {
-                regionArea.emplace(v.value(), 0);
-                ++regionArea[v.value()];
+        for (lapis::cell_t c = 0; c < ridgeGroup.ncell(); ++c) {
+            if (ridgeGroup[c].has_value()) {
+                regionArea.emplace(ridgeGroup[c].value(), 0);
+                ++regionArea[ridgeGroup[c].value()];
             }
         }
         for (lapis::cell_t c = 0; c < ridgeGroup.ncell(); ++c) {
@@ -181,16 +191,20 @@ namespace rxtools {
 
         //create canyon groups
         auto canyon = tpi < -canyonSep;
-        xt::filter(canyon.values(), !canyon.values().value()).has_value() = false;
-        auto canyonGroup = lsmetrics::connCompLabel(canyon);
+        for (lapis::cell_t c = 0; c < canyon.ncell(); ++c) {
+            if (!ridge[c].value()) {
+                ridge[c].has_value() = false;
+            }
+        }
+        auto canyonGroup = lapis::connectedComponents(canyon, false);
         //get unique names of ridge the remove ridge
         cellArea = canyon.xres() * canyon.yres();
         nCellArea = canyonArea / cellArea;
         regionArea.clear();
-        for (auto v : canyonGroup.values()) {
-            if (v.has_value()) {
-                regionArea.emplace(v.value(), 0);
-                ++regionArea[v.value()];
+        for (auto c = 0; c < canyonGroup.ncell(); ++c) {
+            if (canyonGroup[c].has_value()) {
+                regionArea.emplace(canyonGroup[c].value(), 0);
+                ++regionArea[canyonGroup[c].value()];
             }
         }
         for (lapis::cell_t c = 0; c < canyonGroup.ncell(); ++c) {
@@ -260,14 +274,14 @@ namespace rxtools {
         // LMU post processing.
         //--------------------
         // select large lmu's as seeds.
-        auto lmuGrp = lsmetrics::connCompLabel(lmu);
+        auto lmuGrp = lapis::connectedComponents(lmu, false);
         cellArea = canyon.xres() * canyon.yres();
         nCellArea = canyonArea / cellArea; // canyon area cutoff ~10acres, which is our lmu cutoff.
         regionArea.clear();
-        for (auto v : lmuGrp.values()) {
-            if (v.has_value()) {
-                regionArea.emplace(v.value(), 0);
-                ++regionArea[v.value()];
+        for (lapis::cell_t c = 0; c < lmuGrp.ncell(); ++c) {
+            if (lmuGrp[c].has_value()) {
+                regionArea.emplace(lmuGrp[c].value(), 0);
+                ++regionArea[lmuGrp[c].value()];
             }
         }
         for (lapis::cell_t c = 0; c < lmuGrp.ncell(); ++c) {
@@ -279,7 +293,7 @@ namespace rxtools {
 
         //max dist needed to look would be radius of the circle representing the largest removable LMU.
         //a = pi*r^2, I'm not dividing by pi to leave buffer.
-        auto lmuNibble = lsmetrics::nibble(lmu, lmuGrp, std::ceil(std::sqrt(nCellArea)));
+        auto lmuNibble = lapis::nibble(lmu, lmuGrp, std::ceil(std::sqrt(nCellArea)));
         std::cout << "\t\t\tNibbling done.\n";
 
         return lmuNibble;
@@ -287,16 +301,16 @@ namespace rxtools {
 
     void ProjectArea::subdivideLmus(std::string climateClassPath, int nThread) {
         auto cc = lapis::Raster<int>(climateClassPath);
-        cc.resample(lmuIds, lapis::ExtractMethod::near);
+        cc = lapis::resampleRaster(cc, lmuIds, lapis::ExtractMethod::near);
         lmuIds = lmuIds * 100;
         lmuIds = lmuIds + cc;
         std::cout << "climate done \n";
 
         std::unordered_map<int, int> regionArea;
-        for (auto v : lmuIds.values()) {
-            if (v.has_value()) {
-                regionArea.emplace(v.value(), 0);
-                ++regionArea[v.value()];
+        for (lapis::cell_t c = 0; c < lmuIds.ncell(); ++c) {
+            if (lmuIds[c].has_value()) {
+                regionArea.emplace(lmuIds[c].value(), 0);
+                ++regionArea[lmuIds[c].value()];
             }
         }
 
@@ -322,10 +336,10 @@ namespace rxtools {
         auto nCellArea = 300; // canyon area cutoff ~10acres, which is our lmu cutoff.
         regionArea.clear();
         auto mask = newlmus;
-        for (auto v : newlmus.values()) {
-            if (v.has_value()) {
-                regionArea.emplace(v.value(), 0);
-                ++regionArea[v.value()];
+        for (lapis::cell_t c = 0; c < newlmus.ncell(); ++c) {
+            if (newlmus[c].has_value()) {
+                regionArea.emplace(newlmus[c].value(), 0);
+                ++regionArea[newlmus[c].value()];
             }
         }
         for (lapis::cell_t c = 0; c < newlmus.ncell(); ++c) {
@@ -333,7 +347,7 @@ namespace rxtools {
                 mask[c].has_value() = false;
             }
         }
-        auto lmuNibble = lsmetrics::nibble(lmuIds, mask, std::ceil(std::sqrt(nCellArea)));
+        auto lmuNibble = lapis::nibble(lmuIds, mask, std::ceil(std::sqrt(nCellArea)));
         lmuIds = lmuNibble;
     }
 
@@ -346,7 +360,7 @@ namespace rxtools {
         return out;
     }
 
-    void ProjectArea::divideLmusThread(int& sofar, std::mutex& mut, std::unordered_map<int, int>& regionArea, lapis::Raster<int>& lmus, lapis::Raster<int>& newlmus, const int thisThread) {
+    void ProjectArea::divideLmusThread(int& sofar, std::mutex& mut, std::unordered_map<int, int>& regionArea, lapis::Raster<lapis::cell_t>& lmus, lapis::Raster<lapis::cell_t>& newlmus, const int thisThread) {
         int nLmu = regionArea.size();
         while (true) {
             mut.lock();
@@ -360,11 +374,11 @@ namespace rxtools {
             int k = std::ceil((double)area / 650); // 650 cells = 150 acre unit which is max operational size according to jacob baker at stanislaus nf.
             if (k > 1) {
                 std::cout << "Thread " + std::to_string(thisThread) + " starting lmu subdivision " + std::to_string(i) + "/" + std::to_string(nLmu) + "\n";
-                auto kMeans = stats::Kmeans(k, 100);
-                std::vector<stats::Kpoint> allPoints;
+                auto kMeans = utilities::Kmeans(k, 100);
+                std::vector<utilities::Kpoint> allPoints;
                 for (lapis::cell_t j = 0; j < lmus.ncell(); ++j) {
                     if (lmus[j].has_value() && lmus[j].value() == id) {
-                        allPoints.push_back(stats::Kpoint(lmus.xFromCell(j), lmus.yFromCell(j), j));
+                        allPoints.push_back(utilities::Kpoint(lmus.xFromCell(j), lmus.yFromCell(j), j));
                     }
                 }
                 kMeans.run(allPoints);
@@ -374,17 +388,21 @@ namespace rxtools {
                 }
             }
             else {
-                xt::filter(newlmus.values(), xt::equal(newlmus.values().value(), id)).value() = getIndex(1);
+                for (lapis::cell_t c = 0; c < newlmus.ncell(); ++c) {
+                    if (newlmus[c].value() == id) {
+                        newlmus[c].value() = getIndex(1);
+                    }
+                }
             }
         }
     }
 
     void ProjectArea::coreGapThread(lapis::Raster<int>& osiNum, lapis::Raster<int>& osiDen, lapis::Raster<int>& bbOsiNum, lapis::Raster<int>& bbOsiDen, const int nThread, const int thisThread, std::mutex& mut, int& sofar,
-        const lapis::Raster<int>& maskr, const double canopycutoff, const double coregapdist, std::pair<lapis::coord_t, lapis::coord_t> expectedRes,
-        TaoPointGetters getters, double bbDbh) {
-        int ntile = lidarDataset->nTiles();
+        const lapis::Raster<lapis::cell_t>& maskr, const double canopycutoff, double coregapdist, std::pair<lapis::coord_t, lapis::coord_t> expectedRes,
+        TaoGettersMP getters, double bbDbh) {
 
-        lapis::coord_t chmres = lapis::Raster<int>(processedfolder::stringOrThrow(lidarDataset->maxHeightRaster(0))).xres() * lidarDataset->getConvFactor();
+        int ntile = lidarDataset->nTiles();
+        coregapdist = lidarDataset->units()->convertOneToThis(coregapdist, lapis::linearUnitPresets::meter);
         while (true) {
 
             mut.lock();
@@ -396,9 +414,9 @@ namespace rxtools {
             int i = sofar;
             mut.unlock();
 
-            lapis::Raster<int> chm;
+            lapis::Raster<lapis::coord_t> chm;
             lapis::Raster<int> basinMap;
-            TaoPointList taos;
+            TaoListMP taos;
             auto e = lidarDataset->extentByTile(i);
             if (!e.has_value()) {
                 std::cerr << "Extent you tried to create from tile does not exist\n";
@@ -406,12 +424,14 @@ namespace rxtools {
             }
             try {
                 if (e.value().overlaps(maskr)) {
+                    auto eBuffer = lapis::bufferExtent(e.value(), coregapdist);
                     std::cout << "Tile " + std::to_string(i) + "/" + std::to_string(ntile) + " on thread " + std::to_string(thisThread) + "\n";
-                    taos = TaoPointList(lapis::VectorDataset<lapis::Point>>(processedfolder::stringOrThrow(lidarDataset->highPoints(i))), getters),
-                    chm = lapis::Raster<int>(processedfolder::stringOrThrow(lidarDataset->maxHeightRaster(i)));
-                    basinMap = lapis::Raster<int>(processedfolder::stringOrThrow(lidarDataset->watershedSegmentRaster(i)));
-                    chm.repairResolution(expectedRes.first, expectedRes.first, expectedRes.second, expectedRes.second);
-                    basinMap.repairResolution(expectedRes.first, expectedRes.first, expectedRes.second, expectedRes.second);
+                    taos = TaoListMP(lidarDataset->polygons(eBuffer), getters);
+                    chm = lidarDataset->csmRaster(eBuffer).value();
+                    basinMap = lidarDataset->watershedSegmentRaster(eBuffer).value();
+
+                    chm = processedfolder::repairResolution(chm, expectedRes.first, expectedRes.first, expectedRes.second, expectedRes.second);
+                    basinMap = processedfolder::repairResolution(basinMap, expectedRes.first, expectedRes.first, expectedRes.second, expectedRes.second);
                 }
                 else {
                     continue;
@@ -439,7 +459,9 @@ namespace rxtools {
                 }
             }
 
-            bbChm.values().has_value() = chm.values().has_value();
+            for (lapis::cell_t c = 0; c < bbChm.ncell(); ++c) {
+                bbChm[c].has_value() = chm[c].has_value();
+            }
 
             chm.defineCRS(maskr.crs());
             bbChm.defineCRS(maskr.crs());
@@ -447,8 +469,11 @@ namespace rxtools {
             thisalign = lapis::cropAlignment(thisalign, chm, lapis::SnapType::out);
             thisalign = lapis::extendAlignment(thisalign, chm, lapis::SnapType::out);
                    
-            lsmetrics::crop_mw_function<int, int> numFunc = [&](const lsmetrics::crop_view<int>& e)->xtl::xoptional<int> {return lsmetrics::OSInumerator(e, chmres, canopycutoff, coregapdist); };
-            lapis::Raster<int> thiscorenum = lsmetrics::movingWindowByRaster(chm, thisalign, numFunc, coregapdist);
+            lapis::ViewFunc<lapis::cell_t, double> numFunc = [&](const lapis::CropView<double>& e)->xtl::xoptional<lapis::cell_t>
+                {
+                    return OSInumerator(e, chmres, canopycutoff, coregapdist);
+                }
+            lapis::Raster<int> thiscorenum = lapis::focal(chm, thisalign, numFunc, coregapdist);
             lapis::Raster<int> thisbbnum = lsmetrics::movingWindowByRaster(bbChm, thisalign, numFunc, coregapdist);
 
             lsmetrics::crop_mw_function<int, int> totalFunc = [&](const lsmetrics::crop_view<int>& e)->xtl::xoptional<int> {return lsmetrics::totalAreaForOSI(e, chmres, coregapdist); };
@@ -464,28 +489,29 @@ namespace rxtools {
             std::vector<lapis::Raster<int>*> vtotal = { &thistotal,&osiDen };
             std::vector<lapis::Raster<int>*> vbb = { &thisbbnum,&bbOsiNum };
             std::vector<lapis::Raster<int>*> vbbtotal = { &thisbbtotal,&bbOsiDen };
-
             mut.lock();
-            osiNum = lapis::rasterMergeInterior(v);
-            osiDen = lapis::rasterMergeInterior(vtotal);
-            bbOsiNum = lapis::rasterMergeInterior(vbb);
-            bbOsiDen = lapis::rasterMergeInterior(vbbtotal);
+
+            osiNum = lapis::mosaicInside(v);
+            osiDen = lapis::mosaicInside(vtotal);
+            bbOsiNum = lapis::mosaicInside(vbb);
+            bbOsiDen = lapis::mosaicInside(vbbtotal);
 
             for (size_t i = 0; i < taos.size(); ++i) {
                 if (e.value().contains(taos.x(i), taos.y(i)))
-                    allTaos.addTAO(taos[i]);
+                    allTaos.taoVector.addFeature(taos.taoVector.getFeature(i));
             }
             mut.unlock();
         }
     }
 
-    void ProjectArea::postGapThread(lapis::Raster<int>& osiNum, lapis::Raster<int>& osiDen, const TaoPointList& taos, const int nThread, const int thisThread, std::mutex& mut, int& sofar,
+
+
+    void ProjectArea::postGapThread(lapis::Raster<int>& osiNum, lapis::Raster<int>& osiDen, const TaoListMP& taos, const int nThread, const int thisThread, std::mutex& mut, int& sofar,
         const lapis::Raster<int>& maskr, const double canopycutoff, const double coregapdist, std::pair<lapis::coord_t, lapis::coord_t> expectedRes) {
         int ntile = lidarDataset->nTiles();
 
         auto l = lapis::VectorDataset<lapis::Polygon>(processedfolder::stringOrThrow(lidarDataset->tileLayoutVector()));
 
-        lapis::coord_t chmres = lapis::Raster<int>(processedfolder::stringOrThrow(lidarDataset->maxHeightRaster(0))).xres() * lidarDataset->getConvFactor();
         while (true) {
             mut.lock();
             ++sofar;
@@ -504,9 +530,10 @@ namespace rxtools {
             }
             try {
                 if (e.value().overlaps(maskr)) {
+                    auto eBuffer = lapis::bufferExtent(e.value(), coregapdist);
                     std::cout << "Tile " + std::to_string(i) + "/" + std::to_string(ntile) + " on thread " + std::to_string(thisThread) + "\n";
-                    basinMap = lapis::Raster<int>(processedfolder::stringOrThrow(lidarDataset->watershedSegmentRaster(i)));
-                    basinMap.repairResolution(expectedRes.first, expectedRes.first, expectedRes.second, expectedRes.second);
+                    basinMap = lidarDataset->watershedSegmentRaster(eBuffer).value();
+                    basinMap = processedfolder::repairResolution(basinMap, expectedRes.first, expectedRes.first, expectedRes.second, expectedRes.second);
                 }
                 else {
                     continue;
@@ -532,15 +559,18 @@ namespace rxtools {
                     }
                 }
             }
-            chm.values().has_value() = basinMap.values().has_value();
+            for (lapis::cell_t c = 0; c < chm.ncell(); ++c) {
+                chm[c].has_value() = basinMap[c].has_value();
+            }
             chm.defineCRS(maskr.crs());
+
+            //lapis::coord_t chmres = lapis::Raster<int>(processedfolder::stringOrThrow(lidarDataset->maxHeightRaster(0))).xres() * lidarDataset->getConvFactor();
 
             lapis::Alignment thisalign{ maskr };
             thisalign = lapis::cropAlignment(thisalign, chm, lapis::SnapType::out);
             thisalign = lapis::extendAlignment(thisalign, chm, lapis::SnapType::out);
             lsmetrics::crop_mw_function<int, int> numFunc = [&](const lsmetrics::crop_view<int>& e)->xtl::xoptional<int> {return lsmetrics::OSInumerator(e, chmres, canopycutoff, coregapdist); };
             lapis::Raster<int> thiscorenum = lsmetrics::movingWindowByRaster(chm, thisalign, numFunc, coregapdist);
-
             lsmetrics::crop_mw_function<int, int> totalFunc = [&](const lsmetrics::crop_view<int>& e)->xtl::xoptional<int> {return lsmetrics::totalAreaForOSI(e, chmres, coregapdist); };
             lapis::Raster<int> thistotal = lsmetrics::movingWindowByRaster(chm, thisalign, totalFunc, coregapdist);
 
