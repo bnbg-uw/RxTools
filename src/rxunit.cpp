@@ -21,18 +21,27 @@ namespace rxtools {
                     (lapis::rowcol_t)std::ceil((unitMask.xmax() - unitMask.xmin()) / 3), 3, 3 };
         lapis::lico::GraphLico g{ a };
 
+        auto tnf = lapis::lico::TaoNodeFactory<lapis::VectorDataset<lapis::MultiPolygon>>(
+            taos.getters.predicate,
+            taos.getters.xy,
+            taos.getters.radius,
+            taos.getters.area,
+            taos.getters.dbh
+        );
+
         //add all bb trees.
         std::vector<size_t> idxs;
         for (size_t i = 0; i < taos.size(); ++i) {
             if (taos.dbh(i) > bbDbh) {
-                g.addTAO(taos[i], dbh[i], lapis::lico::NodeStatus::on);
+                g.addTAO(tnf(taos(i)), lapis::lico::NodeStatus::on);
                 min.ba += g.nodes[g.nodes.size() - 1].ba;
                 min.tph++;
                 min.cc += g.nodes[g.nodes.size() - 1].area;
-                continue;
             }
-            g.addTAO(taos[i], dbh[i]);
-            idxs.push_back(i);
+            else {
+                g.addTAO(tnf(taos(i)));
+                idxs.push_back(i);
+            }
         }
         min.ba /= areaHa;
         min.tph /= areaHa;
@@ -73,10 +82,11 @@ namespace rxtools {
             lapis::lico::GraphLico g2{ a };
             for (size_t i = 0; i < taos.size(); ++i) {
                 if (taos.dbh(i) > bbDbh) {
-                    g2.addTAO(taos[i], dbh[i], lapis::lico::NodeStatus::on);
-                    continue;
+                    g2.addTAO(tnf(taos(i)), lapis::lico::NodeStatus::on);
                 }
-                g2.addTAO(taos[i], dbh[i]);
+                else {
+                    g2.addTAO(tnf(taos(i)));
+                }
             }
 
             double thisNum = numCurrent;
@@ -126,10 +136,13 @@ namespace rxtools {
 
     void RxUnit::write(std::string path, allometry::FastFuels ffa) {
         taos.writeCsv(path + "/taos.csv");
+        taos.taoVector.writeShapefile(path + "/taos.shp");
         unitMask.writeRaster(path + "/unitMask.img");
         //chm.writeRaster(path + "/chm.img");
         //basinMap.writeRaster(path + "/basinmap.img");
         treatedTaos.writeCsv(path + "/treatedTaos.csv");
+        taos.taoVector.writeShapefile(path + "/treatedTaos.shp");
+
         //treatedChm.writeRaster(path + "/treatedChm.img");
 
         if (ffa.init) {
@@ -167,14 +180,14 @@ namespace rxtools {
         out.close();
     }
 
-    RxUnit::RxUnit(std::string path, TaoGetters<lapis::VectorDataset<lapis::Point>> getters) {
+    RxUnit::RxUnit(std::string path, TaoGettersMP getters) {
         //std::cout << "dbhf load\n";
-        taos = TaoList(path + "/taos.csv");
+        taos = TaoListMP(path + "/taos.shp", getters);
        // std::cout << "taos load\n";
         unitMask = lapis::Raster<int>(path + "/unitMask.img");
         //chm = spatial::Raster<double>(path + "/chm.img");
         //unitMask = spatial::Raster<int>(path + "/basinmap.img");
-        treatedTaos = TaoList(path + "/treatedTaos.csv");
+        treatedTaos = TaoListMP(path + "/treatedTaos.shp", getters);
         //treatedChm = spatial::Raster<double>(path + "/treatedChm.img");
 
         //std::cout << "metaddata\n";

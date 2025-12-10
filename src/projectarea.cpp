@@ -150,8 +150,10 @@ namespace rxtools {
         int tpiDist = 500;
         int aspDist = 135;
         // create ridge groups
-        make sure lapis tpi works this way;
-        auto tpi = lapis::Raster<double>(processedfolder::stringOrThrow(lds->tpi(tpiDist, lapis::linearUnitPresets::meter))) / 100. * convFactor;
+        auto tpi = lapis::Raster<double>(processedfolder::stringOrThrow(lds->tpi(tpiDist, lapis::linearUnitPresets::meter)));
+        if (lds->type() == processedfolder::RunType::fusion) {
+            tpi = tpi / 100; do i need convfactor
+        }
         if (projectPoly.nFeature()) {
             tpi = lapis::cropRaster(tpi, projectPoly.extent(), lapis::SnapType::out);
             //tpi.mask(projectPoly);
@@ -256,7 +258,7 @@ namespace rxtools {
         //ridge = 1
         //NE facing = 2
         //SW facing = 3
-        lapis::Raster<int> lmu{ (lapis::Alignment)aspect };
+        lapis::Raster<lapis::cell_t> lmu{ (lapis::Alignment)aspect };
         for (lapis::cell_t i = 0; i < lmu.ncell(); ++i) {
             if (aspect[i].has_value()) {
                 lmu[i].has_value() = true;
@@ -293,7 +295,7 @@ namespace rxtools {
 
         //max dist needed to look would be radius of the circle representing the largest removable LMU.
         //a = pi*r^2, I'm not dividing by pi to leave buffer.
-        auto lmuNibble = lapis::nibble(lmu, lmuGrp, std::ceil(std::sqrt(nCellArea)));
+        auto lmuNibble = lapis::nibble(lmu, lmuGrp);
         std::cout << "\t\t\tNibbling done.\n";
 
         return lmuNibble;
@@ -347,7 +349,7 @@ namespace rxtools {
                 mask[c].has_value() = false;
             }
         }
-        auto lmuNibble = lapis::nibble(lmuIds, mask, std::ceil(std::sqrt(nCellArea)));
+        auto lmuNibble = lapis::nibble(lmuIds, mask);
         lmuIds = lmuNibble;
     }
 
@@ -468,27 +470,26 @@ namespace rxtools {
             lapis::Alignment thisalign{ maskr };
             thisalign = lapis::cropAlignment(thisalign, chm, lapis::SnapType::out);
             thisalign = lapis::extendAlignment(thisalign, chm, lapis::SnapType::out);
-                   
-            lapis::ViewFunc<lapis::cell_t, double> numFunc = [&](const lapis::CropView<double>& e)->xtl::xoptional<lapis::cell_t>
-                {
-                    return OSInumerator(e, chmres, canopycutoff, coregapdist);
-                }
-            lapis::Raster<int> thiscorenum = lapis::focal(chm, thisalign, numFunc, coregapdist);
-            lapis::Raster<int> thisbbnum = lsmetrics::movingWindowByRaster(bbChm, thisalign, numFunc, coregapdist);
+            
+            lapis::Raster<lapis::coord_t> edt = lapis::euclideanDistanceTransform(chm);
+            lapis::Raster<char> isCoreGap = edt >= 6;
+            lapis::Raster<char> thiscorenum = lapis::aggregateSum(isCoreGap, thisalign);
+            lapis::Raster<char> thisden = lapis::aggregateCount(isCoreGap, thisalign);
 
-            lsmetrics::crop_mw_function<int, int> totalFunc = [&](const lsmetrics::crop_view<int>& e)->xtl::xoptional<int> {return lsmetrics::totalAreaForOSI(e, chmres, coregapdist); };
-            lapis::Raster<int> thistotal = lsmetrics::movingWindowByRaster(chm, thisalign, totalFunc, coregapdist);
-            lapis::Raster<int> thisbbtotal = lsmetrics::movingWindowByRaster(bbChm, thisalign, totalFunc, coregapdist);
+            edt = lapis::euclideanDistanceTransform(bbChm);
+            isCoreGap = edt >= 6;
+            lapis::Raster<char> thisbbnum = lapis::aggregateSum(isCoreGap, thisalign);
+            lapis::Raster<char> thisbbden = lapis::aggregateCount(isCoreGap, thisalign);
 
             thiscorenum = lapis::cropRaster(thiscorenum, e.value(), lapis::SnapType::out);
-            thistotal = lapis::cropRaster(thistotal, e.value(), lapis::SnapType::out);
+            thisden = lapis::cropRaster(thisden, e.value(), lapis::SnapType::out);
             thisbbnum = lapis::cropRaster(thisbbnum, e.value(), lapis::SnapType::out);
-            thisbbtotal = lapis::cropRaster(thisbbtotal, e.value(), lapis::SnapType::out);
+            thisbbden = lapis::cropRaster(thisbbden, e.value(), lapis::SnapType::out);
             
             std::vector<lapis::Raster<int>*> v = { &thiscorenum,&osiNum };
-            std::vector<lapis::Raster<int>*> vtotal = { &thistotal,&osiDen };
+            std::vector<lapis::Raster<int>*> vtotal = { &thisden,&osiDen };
             std::vector<lapis::Raster<int>*> vbb = { &thisbbnum,&bbOsiNum };
-            std::vector<lapis::Raster<int>*> vbbtotal = { &thisbbtotal,&bbOsiDen };
+            std::vector<lapis::Raster<int>*> vbbtotal = { &thisbbden,&bbOsiDen };
             mut.lock();
 
             osiNum = lapis::mosaicInside(v);
@@ -569,20 +570,21 @@ namespace rxtools {
             lapis::Alignment thisalign{ maskr };
             thisalign = lapis::cropAlignment(thisalign, chm, lapis::SnapType::out);
             thisalign = lapis::extendAlignment(thisalign, chm, lapis::SnapType::out);
-            lsmetrics::crop_mw_function<int, int> numFunc = [&](const lsmetrics::crop_view<int>& e)->xtl::xoptional<int> {return lsmetrics::OSInumerator(e, chmres, canopycutoff, coregapdist); };
-            lapis::Raster<int> thiscorenum = lsmetrics::movingWindowByRaster(chm, thisalign, numFunc, coregapdist);
-            lsmetrics::crop_mw_function<int, int> totalFunc = [&](const lsmetrics::crop_view<int>& e)->xtl::xoptional<int> {return lsmetrics::totalAreaForOSI(e, chmres, coregapdist); };
-            lapis::Raster<int> thistotal = lsmetrics::movingWindowByRaster(chm, thisalign, totalFunc, coregapdist);
+            
+            lapis::Raster<lapis::coord_t> edt = lapis::euclideanDistanceTransform(chm);
+            lapis::Raster<char> isCoreGap = edt >= 6;
+            lapis::Raster<char> thiscorenum = lapis::aggregateSum(isCoreGap, thisalign);
+            lapis::Raster<char> thisden = lapis::aggregateCount(isCoreGap, thisalign);
 
             thiscorenum = lapis::cropRaster(thiscorenum, e.value(), lapis::SnapType::out);
-            thistotal = lapis::cropRaster(thistotal, e.value(), lapis::SnapType::out);
+            thisden = lapis::cropRaster(thisden, e.value(), lapis::SnapType::out);
 
             std::vector<lapis::Raster<int>*> v = { &thiscorenum,&osiNum };
-            std::vector<lapis::Raster<int>*> vtotal = { &thistotal,&osiDen };
+            std::vector<lapis::Raster<int>*> vtotal = { &thisden,&osiDen };
 
             mut.lock();
-            osiNum = lapis::rasterMergeInterior(v);
-            osiDen = lapis::rasterMergeInterior(vtotal);
+            osiNum = lapis::mosaicInside(v);
+            osiDen = lapis::mosaicInside(vtotal);
             mut.unlock();
         }
     }

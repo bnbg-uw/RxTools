@@ -7,8 +7,7 @@
 #ifndef licosim_projectsettings_h
 #define licosim_projectsettings_h
 
-#include <cxxopts/cxxopts.hpp>
-
+#include "rxtools_pch.hpp"
 
 namespace licosim {
     struct ProjectSettings {

@@ -1,24 +1,23 @@
 #pragma once
 
-#include "raster/raster.hpp"
-#include "landscapemetrics/landscapemetrics.hpp"
-#include "licosim/rxunit.hpp"
+#include "raster.hpp"
+#include "rxunit.hpp"
 
-namespace licosim {
+namespace rxtools {
     class Output {
     public:  
-        std::vector<spatial::Raster<double>> pre;
-        std::vector<spatial::Raster<double>> post;
-        std::vector<spatial::Raster<double>> target;
-        spatial::Raster<int> lmus;
-        spatial::Raster<int> lmuIds;
+        lapis::Raster<int> ids;
+        lapis::AttributeTable atts;
+        std::vector<lapis::Raster<double>> pre;
+        std::vector<lapis::Raster<double>> post;
+        std::vector<lapis::Raster<double>> target;
+        lapis::Raster<lapis::cell_t> lmus;
+        lapis::Raster<lapis::cell_t> lmuIds;
         std::string commandLine;
-
-        spatial::SpVectorDataset<spatial::SpMultiPolygon> shp;
 
         Output() {
             auto colnames = std::vector<std::string>{
-                "id",
+                "ID",
                 "curBaHa", "curBaAc", "curTpHa", "curTpAc", "curMCS", "curOSI", "curCC",
                 "refBaHa", "refBaAc", "refTpHa", "refTpAc", "refMCS", "refOSI", "refCC",
                 "treatedBaHa", "treatedBaAc", "treatedTpHa", "treatedTpAc", "treatedMCS", "treatedOSI", "treatedCC",
@@ -31,28 +30,59 @@ namespace licosim {
                 OFTReal, OFTReal, OFTReal, OFTReal, OFTReal, OFTReal, OFTReal,
                 OFTReal, OFTReal, OFTInteger
             };
-            shp.setColnames(colnames);
-            shp.setDtypes(types);
+            for (size_t i = 0; i < colnames.size(); ++i) {
+                if (types.at(i) == OFTString) {
+                    atts.addStringField(colnames.at(i), 64);
+                }
+                else if (types.at(i) == OFTReal) {
+                    atts.addRealField(colnames.at(i));
+                }
+                else if (types.at(i) == OFTInteger) {
+                    atts.addIntegerField(colnames.at(i));
+                }
+                else {
+                    throw std::invalid_argument("unsupported OFT Type");
+                }
+            }
         }
 
         void addRxUnit(RxUnit& rx, int lmuCode) {
+            std::vector<lapis::Raster<int>*> poIdsToMerge;
+            poIdsToMerge.push_back(&ids);
+            poIdsToMerge.push_back(&rx.unitMask);
+            ids = lapis::mosaic(poIdsToMerge, lapis::firstCombiner<int>);
+            int thisId = -1;
+            for (lapis::cell_t i = 0; i < rx.unitMask.ncell(); ++i) {
+                if (rx.unitMask[i].has_value()) {
+                    thisId = rx.unitMask[i].value();
+                }
+            }
+            if (thisId == -1) {
+                throw std::invalid_argument("unitmask either has no value or has a negative value");
+            }
+
             for (int i = 0; i < names.size(); ++i) {
                 std::cout << i << "\n";
-                spatial::Raster<double> rPre{ (spatial::Alignment)rx.unitMask };
-                xt::filtration(rPre.values().value(), rx.unitMask.values().has_value()) = rx.currentStructure[i];
-                rPre.values().has_value() = rx.unitMask.values().has_value();
-                spatial::Raster<double> rPost{ (spatial::Alignment)rx.unitMask };
-                xt::filtration(rPost.values().value(), rx.unitMask.values().has_value()) = rx.treatedStructure[i];
-                rPost.values().has_value() = rx.unitMask.values().has_value();
-                spatial::Raster<double> rTarg{ (spatial::Alignment)rx.unitMask };
-                xt::filtration(rTarg.values().value(), rx.unitMask.values().has_value()) = rx.targetStructure[i];
-                rTarg.values().has_value() = rx.unitMask.values().has_value();
+                lapis::Raster<double> rPre{ (lapis::Alignment)rx.unitMask };
+                lapis::Raster<double> rPost{ (lapis::Alignment)rx.unitMask };
+                lapis::Raster<double> rTarg{ (lapis::Alignment)rx.unitMask };
+                for (lapis::cell_t j = 0; j < rPre.ncell(); ++j) {
+                    if (rx.unitMask[j].has_value()) {
+                        rPre[j].value() = rx.currentStructure[i];
+                        rPost[j].value() = rx.treatedStructure[i];
+                        rTarg[j].value() = rx.targetStructure[i];
+
+                        rPre[j].has_value() = true;
+                        rPost[j].has_value() = true;
+                        rTarg[j].has_value() = true;
+                    }
+                }
                 std::cout << "a\n";
 
                 if (pre.size() == names.size()) {
-                    std::vector<spatial::Raster<double>*> poPreToMerge;
-                    std::vector<spatial::Raster<double>*> poPostToMerge;
-                    std::vector<spatial::Raster<double>*> poTargToMerge;
+                    std::vector<lapis::Raster<double>*> poPreToMerge;
+                    std::vector<lapis::Raster<double>*> poPostToMerge;
+                    std::vector<lapis::Raster<double>*> poTargToMerge;
 
                     //Add existing output layers
                     poPreToMerge.push_back(&pre.at(i));
@@ -64,9 +94,9 @@ namespace licosim {
                     poPostToMerge.push_back(&rPost);
                     poTargToMerge.push_back(&rTarg);
 
-                    pre[i] = spatial::rasterMerge(poPreToMerge, mergeFunc);
-                    post[i] = spatial::rasterMerge(poPostToMerge, mergeFunc);
-                    target[i] = spatial::rasterMerge(poTargToMerge, mergeFunc);
+                    pre[i] = lapis::mosaic(poPreToMerge, lapis::firstCombiner<double>);
+                    post[i] = lapis::mosaic(poPostToMerge, lapis::firstCombiner<double>);
+                    target[i] = lapis::mosaic(poTargToMerge, lapis::firstCombiner<double>);
                 }
                 else if(pre.size() < names.size()) {
                     pre.push_back(rPre);
@@ -78,67 +108,42 @@ namespace licosim {
                     throw std::range_error("big ouch");
                 }
             }
-            std::cout << "b\n";
 
-            spatial::SpFeature<spatial::SpMultiPolygon> ft;
-            std::cout << "b1\n";
-            spatial::SpMultiPolygon mp;
-            std::cout << "b2\n";
-            rx.unitMask.writeRaster("F:/unitmask.img");
-            auto geom = spatial::polygonize(rx.unitMask, true, true);
-            std::cout << "b3\n";
-            for (int i = 0; i < geom.nrow(); ++i) {
-                mp.addPolygon(geom.getFeaturesPtr()->at(i).geom);
-            }
-            std::cout << "b4\n";
-            ft.geom = mp;
-            std::cout << "b5\n";
-            ft.geom.updateExtent();
-            std::cout << "c\n";
+            atts.addRow();
+            atts.setStringField(atts.nFeature()-1, "ID", std::to_string(thisId));
+            atts.setRealField(atts.nFeature() - 1, "curBaHa", rx.currentStructure.ba);
+            atts.setRealField(atts.nFeature() - 1, "curBaAc", rx.currentStructure.ba * 4.356);
+            atts.setRealField(atts.nFeature() - 1, "curTpHa", rx.currentStructure.tph);
+            atts.setRealField(atts.nFeature() - 1, "curTpAc", rx.currentStructure.tph / 2.47105);
+            atts.setRealField(atts.nFeature() - 1, "curMCS", rx.currentStructure.mcs);
+            atts.setRealField(atts.nFeature() - 1, "curOSI", rx.currentStructure.osi);
+            atts.setRealField(atts.nFeature() - 1, "curCC", rx.currentStructure.cc);
 
-            try {
-                ft.addAttribute(shp.colNames()[0], shp.dTypes()[0], geom[0].getAttribute("value"));
-            }
-            catch (std::exception e) {
-                std::cout << "Failed at addAttribute()\n";
-                rx.unitMask.writeRaster("E:/r_tmp.img");
-                geom.write("E:/shp_tmp.shp");
-                throw std::runtime_error("polygonize");
-            }
-            ft.addAttribute(shp.colNames()[1], shp.dTypes()[1], std::to_string(rx.currentStructure.ba));
-            ft.addAttribute(shp.colNames()[2], shp.dTypes()[2], std::to_string(rx.currentStructure.ba * 4.356));
-            ft.addAttribute(shp.colNames()[3], shp.dTypes()[3], std::to_string(rx.currentStructure.tph));
-            ft.addAttribute(shp.colNames()[4], shp.dTypes()[4], std::to_string(rx.currentStructure.tph / 2.47105));
-            ft.addAttribute(shp.colNames()[5], shp.dTypes()[5], std::to_string(rx.currentStructure.mcs));
-            ft.addAttribute(shp.colNames()[6], shp.dTypes()[6], std::to_string(rx.currentStructure.osi));
-            ft.addAttribute(shp.colNames()[7], shp.dTypes()[7], std::to_string(rx.currentStructure.cc));
+            atts.setRealField(atts.nFeature() - 1, "refBaHa", rx.targetStructure.ba);
+            atts.setRealField(atts.nFeature() - 1, "refBaAc", rx.targetStructure.ba * 4.356);
+            atts.setRealField(atts.nFeature() - 1, "refTpHa", rx.targetStructure.tph);
+            atts.setRealField(atts.nFeature() - 1, "refTpAc", rx.targetStructure.tph / 2.47105);
+            atts.setRealField(atts.nFeature() - 1, "refMCS", rx.targetStructure.mcs);
+            atts.setRealField(atts.nFeature() - 1, "refOSI", rx.targetStructure.osi);
+            atts.setRealField(atts.nFeature() - 1, "refCC", rx.targetStructure.cc);
 
-            ft.addAttribute(shp.colNames()[8], shp.dTypes()[8], std::to_string(rx.targetStructure.ba));
-            ft.addAttribute(shp.colNames()[9], shp.dTypes()[9], std::to_string(rx.targetStructure.ba * 4.356));
-            ft.addAttribute(shp.colNames()[10], shp.dTypes()[10], std::to_string(rx.targetStructure.tph));
-            ft.addAttribute(shp.colNames()[11], shp.dTypes()[11], std::to_string(rx.targetStructure.tph / 2.47105));
-            ft.addAttribute(shp.colNames()[12], shp.dTypes()[12], std::to_string(rx.targetStructure.mcs));
-            ft.addAttribute(shp.colNames()[13], shp.dTypes()[13], std::to_string(rx.targetStructure.osi));
-            ft.addAttribute(shp.colNames()[14], shp.dTypes()[14], std::to_string(rx.targetStructure.cc));
+            atts.setRealField(atts.nFeature() - 1, "treatedBaHa", rx.treatedStructure.ba);
+            atts.setRealField(atts.nFeature() - 1, "treatedBaAc", rx.treatedStructure.ba * 4.356);
+            atts.setRealField(atts.nFeature() - 1, "treatedTpHa", rx.treatedStructure.tph);
+            atts.setRealField(atts.nFeature() - 1, "treatedTpAc", rx.treatedStructure.tph / 2.47105);
+            atts.setRealField(atts.nFeature() - 1, "treatedMCS", rx.treatedStructure.mcs);
+            atts.setRealField(atts.nFeature() - 1, "treatedOSI", rx.treatedStructure.osi);
+            atts.setRealField(atts.nFeature() - 1, "treatedCC", rx.treatedStructure.cc);
 
-            ft.addAttribute(shp.colNames()[15], shp.dTypes()[15], std::to_string(rx.treatedStructure.ba));
-            ft.addAttribute(shp.colNames()[16], shp.dTypes()[16], std::to_string(rx.treatedStructure.ba * 4.356));
-            ft.addAttribute(shp.colNames()[17], shp.dTypes()[17], std::to_string(rx.treatedStructure.tph));
-            ft.addAttribute(shp.colNames()[18], shp.dTypes()[18], std::to_string(rx.treatedStructure.tph / 2.47105));
-            ft.addAttribute(shp.colNames()[19], shp.dTypes()[19], std::to_string(rx.treatedStructure.mcs));
-            ft.addAttribute(shp.colNames()[20], shp.dTypes()[20], std::to_string(rx.treatedStructure.osi));
-            ft.addAttribute(shp.colNames()[21], shp.dTypes()[21], std::to_string(rx.treatedStructure.cc));
-
-            ft.addAttribute(shp.colNames()[22], shp.dTypes()[22], std::to_string(rx.dbhMin));
-            ft.addAttribute(shp.colNames()[23], shp.dTypes()[23], std::to_string(rx.dbhMax));
-            ft.addAttribute(shp.colNames()[24], shp.dTypes()[24], std::to_string(lmuCode));
-            shp.addFeature(ft);
+            atts.setRealField(atts.nFeature() - 1, "dbhMin", rx.dbhMin);
+            atts.setRealField(atts.nFeature() - 1, "dbhMax", rx.dbhMax);
+            atts.setIntegerField(atts.nFeature() - 1, "lmuCode", lmuCode);
             std::cout << "d\n";
 
         }
 
         void write(std::string path) {
-            auto p = boost::filesystem::path(path);
+            auto p = std::filesystem::path(path);
             std::ofstream cmdLine;
             cmdLine.open((p / "commandLine.txt").string());
             cmdLine << commandLine;
@@ -146,10 +151,14 @@ namespace licosim {
 
             lmus.writeRaster((p / "lmus.img").string());
             lmuIds.writeRaster((p / "lmuIds.img").string());
-            spatial::Raster<double> lmuStats{ (spatial::Alignment)lmuIds };
-            lmuStats.values().has_value() = lmuIds.values().has_value();
-            spatial::Raster<double> lmuDelta{ (spatial::Alignment)lmuIds };
-            lmuDelta.values().has_value() = lmuIds.values().has_value();
+            lapis::Raster<double> lmuStats{ (lapis::Alignment)lmuIds };
+            lapis::Raster<double> lmuDelta{ (lapis::Alignment)lmuIds };
+            for (lapis::cell_t i = 0; i < lmuStats.ncell(); ++i) {
+                if (lmuIds[i].has_value()) {
+                    lmuStats[i].has_value() = true;
+                    lmuDelta[i].has_value() = true;
+                }
+            }
 
             for (int i = 0; i < names.size(); ++i) {
                 if (i == 0 || i == 1) {
@@ -182,9 +191,14 @@ namespace licosim {
 
                 }
 
-                auto preZonal = lsmetrics::zonalStatisticsByRaster(pre[i], lmuIds, zMean);
-                for (auto z : preZonal)
-                    xt::filtration(lmuStats.values().value(), xt::equal(lmuIds.values().value(), z.first)) = z.second.value();
+                auto preZonal = lapis::zonalStatisticsByRaster(pre[i], lmuIds, zMean);
+                for (auto z : preZonal) {
+                    for (int j = 0; j < lmuStats.ncell(); ++j) {
+                        if (lmuIds[j].value() == z.first) {
+                            lmuStats[j].value() = z.second.value();
+                        }
+                    }
+                }
 
                 if (i == 0 || i == 1) {
                     lmuStats.writeRaster((p / ("LMU_CurrentStructure_" + names[i] + "Ha.img")).string());
@@ -199,9 +213,13 @@ namespace licosim {
                 lmuDelta = lmuStats;
 
                 auto postZonal = lsmetrics::zonalStatisticsByRaster(post[i], lmuIds, zMean);
-                for (auto z : postZonal)
-                    xt::filtration(lmuStats.values().value(), xt::equal(lmuIds.values().value(), z.first)) = z.second.value();
-
+                for (auto z : postZonal) {
+                    for (int j = 0; j < lmuStats.ncell(); ++j) {
+                        if (lmuIds[j].value() == z.first) {
+                            lmuStats[j].value() = z.second.value();
+                        }
+                    }
+                }
                 lmuDelta = lmuStats - lmuDelta;
 
                 if (i == 0 || i == 1) {
@@ -223,8 +241,13 @@ namespace licosim {
                 }
 
                 auto targZonal = lsmetrics::zonalStatisticsByRaster(target[i], lmuIds, zMean);
-                for (auto z : targZonal)
-                    xt::filtration(lmuStats.values().value(), xt::equal(lmuIds.values().value(), z.first)) = z.second.value();
+                for (auto z : targZonal) {
+                    for (int j = 0; j < lmuStats.ncell(); ++j) {
+                        if (lmuIds[j].value() == z.first) {
+                            lmuStats[j].value() = z.second.value();
+                        }
+                    }
+                }
 
                 if (i == 0 || i == 1) {
                     lmuStats.writeRaster((p / ("LMU_TargetStructure_" + names[i] + "Ha.img")).string());
@@ -238,13 +261,12 @@ namespace licosim {
                     lmuStats.writeRaster((p / ("LMU_TargetStructure_" + names[i] + ".img")).string());
             }
 
-            shp.projection(pre[0].projection());
-            shp.write((p / "licosim_units.shp").string());
+            auto shp = lapis::rasterToMultiPolygonForTaos(ids, &atts);
+            shp.writeShapefile((p / "licosim_units.shp").string());
         }
 
     private:
-        spatial::rasterMergeFunction<double, double> mergeFunc =spatial::rasterMergeFunction<double, double>(spatial::mergeByFirst<double>);
         lsmetrics::zonal_function<xtl::xoptional<double>, double> zMean = lsmetrics::zonalNoDataMean<double>;
         std::vector<std::string> names = { "Ba", "Tp", "Mcs", "Osi", "Cc"};
     };
-} //namespace licosim
+} //namespace rxtools

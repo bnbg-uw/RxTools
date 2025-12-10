@@ -18,7 +18,7 @@ namespace rxtools {
     // STATUSCD (Live/Dead - 1 for live.  2 for dead I think? double check if mortality is introduced)
     // CBH_m    (Canopy base height in meters)
     // X_m, Y_m (X and Y locations in meters- idk if the units matter for this one?)
-    inline void writeFastFuelsCsv(std::string path, TaoList<lapis::VectorDataset<lapis::Point>> taos, allometry::FastFuels ffa) {
+    inline void writeFastFuelsCsv(std::string path, TaoListMP taos, allometry::FastFuels ffa) {
         std::ofstream out;
         out.open(path);
         out << "SPCD,DIA_cm,HT_m,STATUSCD,CBH_m,X_m,Y_m\n";
@@ -75,7 +75,7 @@ public:
 
     }
 
-    RxUnit(std::string path, TaoGetters<lapis::VectorDataset<lapis::Point>> getters);
+    RxUnit(std::string path, TaoGettersMP getters);
 
     std::pair<StructureSummary, StructureSummary> getVirtualMinMax(std::default_random_engine dre, double bbDbh);
     //StructurePolygon_t getTreatmentEnvelope(std::default_random_engine dre, std::string objective = "random", double bb_dbh = 21);

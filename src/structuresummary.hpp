@@ -17,7 +17,7 @@ namespace rxtools {
         double mcs;
         double osi;
         double cc;
-        std::vector<double> csd;
+        std::vector<double> csd { 0,0,0,0, 0, 0  };
         std::vector<int> binMins{ 1,2,5,10,15,30 };
         std::vector<int> binMaxs{ 1,4,9,14,29,35 };
 
@@ -25,10 +25,10 @@ namespace rxtools {
             csd = std::vector<double>{ mcsTable[0][2], mcsTable[0][3], mcsTable[0][4], mcsTable[0][5], mcsTable[0][6], mcsTable[0][7] };
         };
 
-        StructureSummary(double xba, double xtph, double xmcs, double xosi, double xcc) : ba(xba), tph(xtph), mcs(xmcs), osi(xosi), cc(xcc) {
-            if (xmcs < 1) xmcs = 1;
+        StructureSummary(double ba, double tph, double mcs, double osi, double cc) : ba(ba), tph(tph), mcs(mcs), osi(osi), cc(cc) {
+            if (mcs < 1) mcs = 1;
             for (int i = 0; i < 28; ++i) {
-                if (xmcs >= mcsTable[i][0] && (xmcs < mcsTable[i][1] || mcsTable[i][1] == 200))
+                if (mcs >= mcsTable[i][0] && (mcs < mcsTable[i][1] || mcsTable[i][1] == 200))
                     csd = std::vector<double>{ mcsTable[i][2], mcsTable[i][3], mcsTable[i][4], mcsTable[i][5], mcsTable[i][6], mcsTable[i][7] };
             }
         };
@@ -39,28 +39,22 @@ namespace rxtools {
                 throw std::invalid_argument("xcsd should be of size 6, when not specifying bins");
         };
 
-        StructureSummary(double xba, double xtph, double xmcs, double xosi, double xcc, std::vector<double> xcsd, std::vector<int> xbinMins, std::vector<int> xbinMaxs) :
-            ba(xba), tph(xtph), mcs(xmcs), osi(xosi), csd(xcsd), cc(xcc), binMins(xbinMins), binMaxs(xbinMaxs) {
+        StructureSummary(double ba, double tph, double mcs, double osi, double cc, std::vector<double> csd, std::vector<int> binMins, std::vector<int> binMaxs) :
+            ba(ba), tph(tph), mcs(mcs), osi(osi), csd(csd), cc(cc), binMins(binMins), binMaxs(binMaxs) {
             if (csd.size() != binMins.size() || csd.size() != binMaxs.size())
                 throw std::invalid_argument("csd, binmins, and binmaxs should all have equal size.");
         };
 
-        StructureSummary(const lapis::VectorDataset<lapis::Point>& taos,
-            const lapis::lico::TaoNodeFactory<lapis::VectorDataset<lapis::Point>>& tnf,
-            const allometry::Model* dbhModel,
+        StructureSummary(const TaoListMP& taos,
+            const lapis::lico::TaoNodeFactory<lapis::VectorDataset<lapis::MultiPolygon>>& tnf,
             const lapis::Alignment& unitAlign,
             double areaHa,
-            double maxCrown = 3,
             double osi = -1
-            )
+            ) : osi(osi)
         {
             lapis::lico::GraphLico g{ unitAlign };
-            g.addDataset(taos, tnf, lapis::lico::NodeStatus::on);
+            g.addDataset(taos.taoVector, tnf, lapis::lico::NodeStatus::on);
 
-            double ba;
-            double mcs;
-            double tph;
-            double cc;
             try {
                 mcs = 0;
                 cc = 0;
@@ -71,8 +65,6 @@ namespace rxtools {
                     ba += g.nodes.at(i).ba;
                 }
                 mcs /= static_cast<double>(g.nodes.size());
-
-                come back here to verify unit conversion;
                 cc = cc / 10000. / areaHa;
             }
             catch (std::bad_alloc e) {
@@ -86,35 +78,30 @@ namespace rxtools {
 
             tph = g.nodes.size() / areaHa;
 
-            std::vector<double> csd(6, 0);
-
             try {
-
-                for (int i = 0; i < clumps.clumpSize.size(); i++) { //TODO: don't hardcode these bins
-                    if (clumps.clumpSize[i] == 1)
+                for (int i = 0; i < g.nodes.size(); i++) { //TODO: don't hardcode these bins
+                    auto clsz = g.nodes[i].clumpSize();
+                    if (clsz == 1)
                         csd[0]++;
-                    else if (clumps.clumpSize[i] < 5)
+                    else if (clsz < 5)
                         csd[1]++;
-                    else if (clumps.clumpSize[i] < 10)
+                    else if (clsz < 10)
                         csd[2]++;
-                    else if (clumps.clumpSize[i] < 15)
+                    else if (clsz < 15)
                         csd[3]++;
-                    else if (clumps.clumpSize[i] < 31)
+                    else if (clsz < 31)
                         csd[4]++;
                     else
                         csd[5]++;
                 }
 
                 for (int i = 0; i < csd.size(); i++)
-                    csd[i] /= static_cast<double>(clumps.clumpSize.size());
+                    csd[i] /= static_cast<double>(g.nodes.size());
             }
             catch (std::bad_alloc e) {
                 std::cout << "csd\n";
                 throw e;
             }
-
-            auto out = StructureSummary(ba, tph, mcs, osi, cc, csd);
-            return out;
         }
 
         double operator[](int idx) const {
@@ -161,20 +148,17 @@ namespace rxtools {
     };
 
     inline double calcOsi(lapis::Raster<int> chm) {
-        lapis::Alignment thisalign{ unitMask };
-        thisalign.crop(chm, lapis::SnapType::out);
-        thisalign.extend(chm, lapis::SnapType::out);
-        lsmetrics::crop_mw_function<double, int> numFunc = [&](const lsmetrics::crop_view<int>& e)->xtl::xoptional<double> {return lsmetrics::OSInumerator(e, chmres, canopycutoff, coregapdist); };
-        spatial::Raster<double> coreNum = lsmetrics::movingWindowByRaster(chm, thisalign, numFunc, coregapdist);
-        lsmetrics::crop_mw_function<double, int> totalFunc = [&](const lsmetrics::crop_view<int>& e)->xtl::xoptional<double> {return lsmetrics::totalAreaForOSI(e, chmres, coregapdist); };
-        spatial::Raster<double> thistotal = lsmetrics::movingWindowByRaster(chm, thisalign, totalFunc, coregapdist);
-
+        lapis::Raster<lapis::coord_t> edt = lapis::euclideanDistanceTransform(chm);
+        lapis::Raster<char> isCoreGap = edt >= 6;
+        
         int osinum = 0;
         int osiden = 0;
-        for (spatial::cell_t i = 0; i < coreNum.ncell(); ++i) {
-            if (coreNum[i].has_value()) {
-                osinum += coreNum[i].value();
-                osiden += thistotal[i].value();
+        for (lapis::cell_t i = 0; i < isCoreGap.ncell(); ++i) {
+            if (isCoreGap[i].has_value()) {
+                if (isCoreGap[i].value()) {
+                    osinum++;
+                }
+                osiden++;
             }
         }
         return (static_cast<double>(osinum) / static_cast<double>(osiden)) * 100.;

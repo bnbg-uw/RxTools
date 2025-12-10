@@ -5,6 +5,7 @@
 
 #include "Vector.hpp"
 #include "lico/src/GraphLico.hpp"
+#include "Coordinate.hpp"
 
 namespace rxtools {
 
@@ -63,7 +64,7 @@ namespace rxtools {
             return xy(i).y;
         }
 
-        const lapis::chm_t height(size_t i) const {
+        const lapis::coord_t height(size_t i) const {
             return getters.height(taoVector.getFeature(i))
         }
 
