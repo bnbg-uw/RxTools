@@ -52,7 +52,7 @@ namespace rxtools {
             return taoVector.nFeatures();
         }
 
-        const lapis::coordXY xy(size_t i) const {
+        const lapis::CoordXY xy(size_t i) const {
             return getters.xy(taoVector.getFeature(i));
         }
 
