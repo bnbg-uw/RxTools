@@ -148,8 +148,8 @@ namespace rxtools {
     };
 
     inline double calcOsi(lapis::Raster<int> chm) {
-        lapis::Raster<lapis::coord_t> edt = lapis::euclideanDistanceTransform(chm);
-        lapis::Raster<char> isCoreGap = edt >= 6;
+        lapis::Raster<lapis::coord_t> edt = lapis::euclideanDistanceTransform(chm, [](lapis::coord_t v) { return v >= 2; });
+        lapis::Raster<char> isCoreGap = edt >= 6.;
         
         int osinum = 0;
         int osiden = 0;

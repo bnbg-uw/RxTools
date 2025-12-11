@@ -471,31 +471,42 @@ namespace rxtools {
             thisalign = lapis::cropAlignment(thisalign, chm, lapis::SnapType::out);
             thisalign = lapis::extendAlignment(thisalign, chm, lapis::SnapType::out);
             
-            lapis::Raster<lapis::coord_t> edt = lapis::euclideanDistanceTransform(chm);
-            lapis::Raster<char> isCoreGap = edt >= 6;
-            lapis::Raster<char> thiscorenum = lapis::aggregateSum(isCoreGap, thisalign);
-            lapis::Raster<char> thisden = lapis::aggregateCount(isCoreGap, thisalign);
+            lapis::Raster<lapis::coord_t> edt = lapis::euclideanDistanceTransform(chm, [](lapis::coord_t v) { return v >= 2; });
+            lapis::Raster<int> isCoreGap{ (lapis::Alignment)edt };
+            for (lapis::cell_t c = 0; c < edt.ncell(); ++c) {
+                if (edt[c].has_value()) {
+                    isCoreGap[c].has_value() = true;
+                    if (edt[c].value() >= 6) {
+                        isCoreGap[c].value() = 1;
+                    }
+                }
+            }
+            lapis::Raster<int> thiscorenum = lapis::aggregateSum(isCoreGap, thisalign);
+            lapis::Raster<int> thisden = lapis::aggregateCount(isCoreGap, thisalign);
 
-            edt = lapis::euclideanDistanceTransform(bbChm);
-            isCoreGap = edt >= 6;
-            lapis::Raster<char> thisbbnum = lapis::aggregateSum(isCoreGap, thisalign);
-            lapis::Raster<char> thisbbden = lapis::aggregateCount(isCoreGap, thisalign);
+            edt = lapis::euclideanDistanceTransform(bbChm, [](lapis::coord_t v) { return v >= 2; });
+            isCoreGap = lapis::Raster<int>((lapis::Alignment)edt);
+            for (lapis::cell_t c = 0; c < edt.ncell(); ++c) {
+                if (edt[c].has_value()) {
+                    isCoreGap[c].has_value() = true;
+                    if (edt[c].value() >= 6) {
+                        isCoreGap[c].value() = 1;
+                    }
+                }
+            }
+            lapis::Raster<int> thisbbnum = lapis::aggregateSum(isCoreGap, thisalign);
+            lapis::Raster<int> thisbbden = lapis::aggregateCount(isCoreGap, thisalign);
 
             thiscorenum = lapis::cropRaster(thiscorenum, e.value(), lapis::SnapType::out);
             thisden = lapis::cropRaster(thisden, e.value(), lapis::SnapType::out);
             thisbbnum = lapis::cropRaster(thisbbnum, e.value(), lapis::SnapType::out);
             thisbbden = lapis::cropRaster(thisbbden, e.value(), lapis::SnapType::out);
             
-            std::vector<lapis::Raster<int>*> v = { &thiscorenum,&osiNum };
-            std::vector<lapis::Raster<int>*> vtotal = { &thisden,&osiDen };
-            std::vector<lapis::Raster<int>*> vbb = { &thisbbnum,&bbOsiNum };
-            std::vector<lapis::Raster<int>*> vbbtotal = { &thisbbden,&bbOsiDen };
             mut.lock();
-
-            osiNum = lapis::mosaicInside(v);
-            osiDen = lapis::mosaicInside(vtotal);
-            bbOsiNum = lapis::mosaicInside(vbb);
-            bbOsiDen = lapis::mosaicInside(vbbtotal);
+            lapis::overlayInside(osiNum, thiscorenum);
+            lapis::overlayInside(osiDen, thisden);
+            lapis::overlayInside(bbOsiNum, thisbbnum);
+            lapis::overlayInside(bbOsiDen, thisbbden);
 
             for (size_t i = 0; i < taos.size(); ++i) {
                 if (e.value().contains(taos.x(i), taos.y(i)))
@@ -571,20 +582,25 @@ namespace rxtools {
             thisalign = lapis::cropAlignment(thisalign, chm, lapis::SnapType::out);
             thisalign = lapis::extendAlignment(thisalign, chm, lapis::SnapType::out);
             
-            lapis::Raster<lapis::coord_t> edt = lapis::euclideanDistanceTransform(chm);
-            lapis::Raster<char> isCoreGap = edt >= 6;
-            lapis::Raster<char> thiscorenum = lapis::aggregateSum(isCoreGap, thisalign);
-            lapis::Raster<char> thisden = lapis::aggregateCount(isCoreGap, thisalign);
+            lapis::Raster<lapis::coord_t> edt = lapis::euclideanDistanceTransform(chm, [](lapis::coord_t v) { return v >= 2; });
+            lapis::Raster<int> isCoreGap{ (lapis::Alignment)edt };
+            for (lapis::cell_t c = 0; c < edt.ncell(); ++c) {
+                if (edt[c].has_value()) {
+                    isCoreGap[c].has_value() = true;
+                    if (edt[c].value() >= 6) {
+                        isCoreGap[c].value() = 1;
+                    }
+                }
+            }
+            lapis::Raster<int> thiscorenum = lapis::aggregateSum(isCoreGap, thisalign);
+            lapis::Raster<int> thisden = lapis::aggregateCount(isCoreGap, thisalign);
 
             thiscorenum = lapis::cropRaster(thiscorenum, e.value(), lapis::SnapType::out);
             thisden = lapis::cropRaster(thisden, e.value(), lapis::SnapType::out);
 
-            std::vector<lapis::Raster<int>*> v = { &thiscorenum,&osiNum };
-            std::vector<lapis::Raster<int>*> vtotal = { &thisden,&osiDen };
-
             mut.lock();
-            osiNum = lapis::mosaicInside(v);
-            osiDen = lapis::mosaicInside(vtotal);
+            lapis::overlayInside(osiNum, thiscorenum);
+            lapis::overlayInside(osiDen, thisden);
             mut.unlock();
         }
     }

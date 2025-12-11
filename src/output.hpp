@@ -15,7 +15,7 @@ namespace rxtools {
         lapis::Raster<lapis::cell_t> lmuIds;
         std::string commandLine;
 
-        Output() {
+        Output(lapis::Alignment outAlign) : ids(outAlign), lmus(outAlign), lmuIds(outAlign){
             auto colnames = std::vector<std::string>{
                 "ID",
                 "curBaHa", "curBaAc", "curTpHa", "curTpAc", "curMCS", "curOSI", "curCC",
@@ -47,10 +47,7 @@ namespace rxtools {
         }
 
         void addRxUnit(RxUnit& rx, int lmuCode) {
-            std::vector<lapis::Raster<int>*> poIdsToMerge;
-            poIdsToMerge.push_back(&ids);
-            poIdsToMerge.push_back(&rx.unitMask);
-            ids = lapis::mosaic(poIdsToMerge, lapis::firstCombiner<int>);
+            lapis::overlayInside(ids, rx.unitMask);
             int thisId = -1;
             for (lapis::cell_t i = 0; i < rx.unitMask.ncell(); ++i) {
                 if (rx.unitMask[i].has_value()) {
@@ -79,34 +76,14 @@ namespace rxtools {
                 }
                 std::cout << "a\n";
 
-                if (pre.size() == names.size()) {
-                    std::vector<lapis::Raster<double>*> poPreToMerge;
-                    std::vector<lapis::Raster<double>*> poPostToMerge;
-                    std::vector<lapis::Raster<double>*> poTargToMerge;
-
-                    //Add existing output layers
-                    poPreToMerge.push_back(&pre.at(i));
-                    poPostToMerge.push_back(&post.at(i));
-                    poTargToMerge.push_back(&target.at(i));
-
-                    //Add new layers
-                    poPreToMerge.push_back(&rPre);
-                    poPostToMerge.push_back(&rPost);
-                    poTargToMerge.push_back(&rTarg);
-
-                    pre[i] = lapis::mosaic(poPreToMerge, lapis::firstCombiner<double>);
-                    post[i] = lapis::mosaic(poPostToMerge, lapis::firstCombiner<double>);
-                    target[i] = lapis::mosaic(poTargToMerge, lapis::firstCombiner<double>);
+                if (pre.size() < names.size()) {
+                    pre.push_back(lapis::Raster<double>{ (lapis::Alignment)ids });
+                    post.push_back(lapis::Raster<double>{ (lapis::Alignment)ids });
+                    target.push_back(lapis::Raster<double>{ (lapis::Alignment)ids });
                 }
-                else if(pre.size() < names.size()) {
-                    pre.push_back(rPre);
-                    post.push_back(rPost);
-                    target.push_back(rTarg);
-                }
-                else {
-                    std::cout << "Failed at merge " + std::to_string(pre.size()) + " " + std::to_string(names.size()) + "\n";
-                    throw std::range_error("big ouch");
-                }
+                lapis::overlayInside(pre[i], rPre);
+                lapis::overlayInside(post[i], rPost);
+                lapis::overlayInside(target[i],rTarg);
             }
 
             atts.addRow();
