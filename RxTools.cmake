@@ -6,8 +6,13 @@ file(GLOB RXTOOLS_SOURCES
 	${RXTOOLS_DIR}/src/*.hpp
 	${RXTOOLS_DIR}/src/*.cpp)
 
-include("${RXTOOLS_DIR}/src/LapisGis/LapisGis.cmake")
-include("${RXTOOLS_DIR}/src/lico/lico.cmake")
+if(EXISTS "${RXTOOLS_DIR}/src/LapisGis/LapisGis.cmake")
+	include("${RXTOOLS_DIR}/src/LapisGis/LapisGis.cmake")
+	include("${RXTOOLS_DIR}/src/lico/lico.cmake")
+else()
+	include("${RXTOOLS_DIR}/../LapisGis/LapisGis.cmake")
+	include("${RXTOOLS_DIR}/../lico/lico.cmake")
+endif()
 
 find_package(Eigen3 REQUIRED)
 
