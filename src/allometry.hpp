@@ -5,7 +5,7 @@
 
 #include "rxtools_pch.hpp"
 #include "utilities.hpp"
-#include "LapisGis/src/Raster.hpp"
+#include "Raster.hpp"
 
 namespace rxtools::linearUnitPresets {
     const lapis::LinearUnit inch{ "inch",0.0254 };
@@ -75,7 +75,21 @@ namespace rxtools::allometry {
 
         template<class T>
         const std::size_t limitByRasterValue(const lapis::Raster<T>& r, const T& v) {
-            ...
+            lapis::CoordRef fiacrs{ "4326" };
+            lapis::CoordTransform transformToExt = lapis::CoordTransform(fiacrs, r.projection());
+
+            PlotList newpl;
+
+            for (const auto& plot : plots) {
+                auto pt = lapis::Point(plot.second.second, plot.second.first, fiacrs); //make Point from lon, lat.
+                pt.project(transformToExt);
+                auto atPlot = r.extract(pt.getX(), pt.getY());
+                if (atPlot.has_value() && atPlot.value() == v) {
+                    newpl.emplace(plot.first, plot.second);
+                }
+            }
+            plots = newpl;
+            return plots.size();
         }
 
         void makePlotTreeMap(const std::vector<std::string> colNames);

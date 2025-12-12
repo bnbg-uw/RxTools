@@ -26,30 +26,23 @@ namespace rxtools {
     class TaoList {
     public:
         TaoGetters<DATASET> getters;
+        lapis::lico::TaoNodeFactory<DATASET> nodeFactory;
         DATASET taoVector;
 
         TaoList() = default;
-        TaoList(DATASET t, TaoGetters<DATASET> g) : taoVector(t), getters(g) {}
-        TaoList(std::string f, TaoGetters<DATASET>  g) : taoVector(lapis::VectorDataset<DATASET>(f)), getters(g) {}
+        TaoList(DATASET t, TaoGetters<DATASET> g) : taoVector(t), getters(g), nodeFactory(g.predicate, g.xy, g.radius, g.area, g.dbh) {}
+        TaoList(std::string f, TaoGetters<DATASET>  g) : taoVector(DATASET(f)), getters(g), nodeFactory(g.predicate, g.xy, g.radius, g.area, g.dbh) {}
 
         const typename DATASET::ConstFeatureType operator()(size_t i) {
             return taoVector.getFeature(i);
         }
 
         const lapis::lico::TaoNode nodeFromIndex(size_t i)  const {
-            return lapis::lico::TaoNode(
-                getters.xy(taoVector.getFeature(i)).x,
-                getters.xy(taoVector.getFeature(i)).y,
-                getters.radius(taoVector.getFeature(i)),
-                getters.area(taoVector.getFeature(i)),
-                1,
-                getters.dbh(taoVector.getFeature(i)),
-                nullptr
-            );
+            return nodeFactory(taoVector.getFeature(i));
         }
 
         const size_t size() const {
-            return taoVector.nFeatures();
+            return taoVector.nFeature();
         }
 
         const lapis::CoordXY xy(size_t i) const {
@@ -65,7 +58,7 @@ namespace rxtools {
         }
 
         const lapis::coord_t height(size_t i) const {
-            return getters.height(taoVector.getFeature(i))
+            return getters.height(taoVector.getFeature(i));
         }
 
         const lapis::coord_t radius(size_t i) const {

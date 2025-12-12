@@ -34,12 +34,8 @@ public:
     bool paired = false;
     bool treated = false;
     TaoListMP taos;
-    lapis::Raster<int> unitMask;
+    lapis::Raster<lapis::cell_t> unitMask;
     double areaHa = 0;
-
-    double canopycutoff = 2;
-    double coregapdist = 6;
-    double chmres = 0.75;
 
     double dbhMin = -1;
     double dbhMax = -1;
@@ -53,26 +49,22 @@ public:
     RxUnit() = default;
 
     template<class T>
-    RxUnit(lapis::Raster<T> mask, TaoListMP tl, double osi, double convFactor) {
-        is convfactor the correct paradigm still?
-        unitMask = mask;
-        for (spatial::cell_t i = 0; i < mask.ncell(); i++) {
+    RxUnit(lapis::Raster<T> mask, const TaoListMP& tl, double osi) : unitMask(mask) {
+        for (lapis::cell_t i = 0; i < mask.ncell(); ++i) {
             if (unitMask[i].has_value()) {
                 areaHa += unitMask.xres() * unitMask.yres();
             }
         }
-
-        areaHa *= convFactor * convFactor;
+        
+        auto conv = mask.crs().getXYLinearUnits()->convertOneFromThis(1, lapis::linearUnitPresets::meter);
+        areaHa *= conv * conv;
         areaHa /= 10000.0;
 
         for (int i = 0; i < tl.size(); i++) {
-            if (unitMask.extract(tl.x()[i], tl.y()[i]).has_value())
-                taos.addTAO(tl[i]);
+            if (unitMask.extract(tl.x(i), tl.y(i), lapis::ExtractMethod::near).has_value())
+                taos.taoVector.addFeature(tl.taoVector.getFeature(i));
         }
-
-        coregapdist /= convFactor;
-        currentStructure = summarizeStructure(taos, osi, dbhFunc);
-
+        currentStructure = StructureSummary(taos, unitMask, areaHa, osi);
     }
 
     RxUnit(std::string path, TaoGettersMP getters);
@@ -82,9 +74,6 @@ public:
     //spatial::Raster<int> makeChm(spatial::Raster<int> chm, lico::TaoList tl);
 
     void write(std::string path, allometry::FastFuels ffa);
-
-private:
-    double calcOsi(lapis::Raster<int> chm) const;
 
 };
 } // namespace rxtools

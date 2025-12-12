@@ -25,46 +25,55 @@ public:
 
     Lmu() {};
     Lmu(lapis::Raster<lapis::cell_t> mask, LmuType t) : mask(mask), type(t) {};
-    Lmu(std::string path, TaoGetters<lapis::VectorDataset<lapis::Point>> getters);
+    Lmu(std::string path, TaoGettersMP getters);
 
-    void makeUnits(lapis::VectorDataset<lapis::MultiPolygon> unitsPoly, TaoList<lapis::VectorDataset<lapis::Point>> tl, lapis::Raster<int> osiNum, lapis::Raster<int> osiDen, double convFactor, bool overrideTargets);
+    void makeUnits(const lapis::VectorDataset<lapis::MultiPolygon>& unitsPoly, const TaoListMP& tl, const lapis::Raster<int>& osiNum, const lapis::Raster<int>& osiDen, const bool& overrideTargets);
 
     template<class T>
-    void makeUnits(lapis::Raster<T> unitsRaster, TaoList<lapis::VectorDataset<lapis::Point>> taos, lapis::Raster<int> osiNum, lapis::Raster<int> osiDen, double convFactor) {
-        if (units.size()) throw std::runtime_error("Units have already been calculated");
+    void makeUnits(const lapis::Raster<T>& unitsRaster, const TaoListMP& tl, const lapis::Raster<int>& osiNum, const lapis::Raster<int>& osiDen) {
+        if (units.size()) {
+            throw std::runtime_error("Units have already been calculated");
+        }
+        if (!unitsRaster.overlaps(mask)) {
+            throw lapis::OutsideExtentException();
+        }
 
-        if (!unitsRaster.overlaps(mask)) throw spatial::OutsideExtentException();
-        unitsRaster.crop(mask);
-        unitsRaster.mask(mask);
+        auto thisUnits = lapis::cropRaster(unitsRaster, mask);
+        thisUnits.mask(mask);
         std::unordered_set<T> ids;
-        for (spatial::cell_t i = 0; i < unitsRaster.ncell(); i++) {
-            if (unitsRaster[i].has_value())
-                ids.emplace(unitsRaster[i].value());
+        for (lapis::cell_t i = 0; i < thisUnits.ncell(); i++) {
+            if (thisUnits[i].has_value())
+                ids.emplace(thisUnits[i].value());
         }
 
         for (T id : ids) {
-            auto unitMask = unitsRaster;
-            xt::filtration(unitMask.values().has_value(), xt::not_equal(unitMask.values().value(), id)) = false;
-            unitMask.trim();
-
-            osiNum.crop(unitMask);
-            osiDen.crop(unitMask);
-            osiNum.mask(unitMask);
-            osiDen.mask(unitMask);
-            double num = 0;
-            double den = 0;
-            for (spatial::cell_t i = 0; i < osiNum.ncell(); ++i) {
-                if (osiNum[i].has_value()) {
-                    num += osiNum[i].value();
-                    den += osiDen[i].value();
+            auto unitMask = thisUnits;
+            for (lapis::cell_t c = 0; c < unitMask.ncell(); ++c) {
+                if (unitMask[c].value() != id) {
+                    unitMask[c].has_value() = false;
                 }
             }
-            double osi = num / den * 100;
-
+            unitMask = lapis::trimRaster(unitMask);
+            
             if (unitMask.anyHasValue()) {
-                auto rx = RxUnit(unitMask, tl, osi, convFactor, dbhFunc);
-                if(rx.areaHa > 0.5)
+                auto thisNum = lapis::cropRaster(osiNum, unitMask, lapis::SnapType::out);
+                auto thisDen = lapis::cropRaster(osiDen, unitMask, lapis::SnapType::out);
+                thisNum.mask(unitMask);
+                thisDen.mask(unitMask);
+                double num = 0;
+                double den = 0;
+                for (lapis::cell_t i = 0; i < thisNum.ncell(); ++i) {
+                    if (thisNum[i].has_value()) {
+                        num += thisNum[i].value();
+                        den += thisDen[i].value();
+                    }
+                }
+                double osi = num / den * 100;
+
+                auto rx = RxUnit(unitMask, tl, osi);
+                if (rx.areaHa > 0.5) {
                     units.push_back(rx);
+                }
             }
         }
     }

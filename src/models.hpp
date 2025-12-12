@@ -62,9 +62,7 @@ namespace rxtools::allometry {
         //There's a brief description of the quantity on page 185 (3-16) in the FIA DB documentation."
         double predictCbh(const double& height);
 
-        int assignSpecies(const double& x, const double& y) {
-            return spcdWeights[spcdHash(x * y) % spcdWeights.size()];
-        }
+        int assignSpecies(const double& x, const double& y);
 
     private:
         std::vector<int> spcdWeights;

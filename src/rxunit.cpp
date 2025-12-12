@@ -154,8 +154,6 @@ namespace rxtools {
         out.open(path + "/metadata.csv");
         out << "treated," << treated << "\n";
         out << "areaHa," << areaHa << "\n";
-        out << "canopycutoff," << canopycutoff << "\n";
-        out << "coregapdist," << coregapdist << "\n";
         out << "dbhMin," << dbhMin << "\n";
         out << "dbhMax," << dbhMax << "\n";
 
@@ -184,7 +182,7 @@ namespace rxtools {
         //std::cout << "dbhf load\n";
         taos = TaoListMP(path + "/taos.shp", getters);
        // std::cout << "taos load\n";
-        unitMask = lapis::Raster<int>(path + "/unitMask.img");
+        unitMask = lapis::Raster<lapis::cell_t>(path + "/unitMask.img");
         //chm = spatial::Raster<double>(path + "/chm.img");
         //unitMask = spatial::Raster<int>(path + "/basinmap.img");
         treatedTaos = TaoListMP(path + "/treatedTaos.shp", getters);
@@ -197,8 +195,6 @@ namespace rxtools {
 
         treated = utilities::readCSVLine(is)[1] == "1";
         areaHa = std::stod(utilities::readCSVLine(is)[1]);
-        canopycutoff = std::stod(utilities::readCSVLine(is)[1]);
-        coregapdist = std::stod(utilities::readCSVLine(is)[1]);
         dbhMin = std::stod(utilities::readCSVLine(is)[1]);
         dbhMax = std::stod(utilities::readCSVLine(is)[1]);
 

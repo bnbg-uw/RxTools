@@ -46,14 +46,13 @@ namespace rxtools {
         };
 
         StructureSummary(const TaoListMP& taos,
-            const lapis::lico::TaoNodeFactory<lapis::VectorDataset<lapis::MultiPolygon>>& tnf,
             const lapis::Alignment& unitAlign,
             double areaHa,
             double osi = -1
             ) : osi(osi)
         {
             lapis::lico::GraphLico g{ unitAlign };
-            g.addDataset(taos.taoVector, tnf, lapis::lico::NodeStatus::on);
+            g.addDataset(taos.taoVector, taos.nodeFactory, lapis::lico::NodeStatus::on);
 
             try {
                 mcs = 0;
@@ -147,9 +146,9 @@ namespace rxtools {
         };
     };
 
-    inline double calcOsi(lapis::Raster<int> chm) {
-        lapis::Raster<lapis::coord_t> edt = lapis::euclideanDistanceTransform(chm, [](lapis::coord_t v) { return v >= 2; });
-        lapis::Raster<char> isCoreGap = edt >= 6.;
+    inline double calcOsi(lapis::Raster<int> chm, lapis::coord_t heightCutoff, lapis::coord_t coreDist) {
+        lapis::Raster<lapis::coord_t> edt = lapis::euclideanDistanceTransform(chm, [heightCutoff](lapis::coord_t v) { return v >= heightCutoff; });
+        lapis::Raster<char> isCoreGap = edt >= coreDist;
         
         int osinum = 0;
         int osiden = 0;

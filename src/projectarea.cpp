@@ -109,8 +109,8 @@ namespace rxtools {
     }
     
     Lmu ProjectArea::createLmuThread(int& sofar, const int thisThread) {
-        int id = std::next(regionType.begin(), sofar)->first;
-        int type = std::next(regionType.begin(), sofar)->second;
+        lapis::cell_t id = std::next(regionType.begin(), sofar)->first;
+        lapis::cell_t type = std::next(regionType.begin(), sofar)->second;
         
         std::cout << "\t Creating lmu " + std::to_string(sofar) + "/" + std::to_string(regionType.size()) + " " + std::to_string(id) + " on thread " + std::to_string(thisThread) + "\n";
         auto r = lmuIds;
@@ -152,7 +152,7 @@ namespace rxtools {
         // create ridge groups
         auto tpi = lapis::Raster<double>(processedfolder::stringOrThrow(lds->tpi(tpiDist, lapis::linearUnitPresets::meter)));
         if (lds->type() == processedfolder::RunType::fusion) {
-            tpi = tpi / 100; do i need convfactor
+            tpi = tpi / 100; //technically needs to be converted to metric if elevation is in feet, but thats a you problem later...
         }
         if (projectPoly.nFeature()) {
             tpi = lapis::cropRaster(tpi, projectPoly.extent(), lapis::SnapType::out);
@@ -176,8 +176,8 @@ namespace rxtools {
         auto ridgeGroup = lapis::connectedComponents(ridge, false);
         // Get unique names of ridges, then remove ridges smaller than min patch size.
         double cellArea = tpi.xres() * tpi.yres();
-        int nCellArea = ridgeArea / cellArea;
-        std::unordered_map<int, int> regionArea;
+        int nCellArea = (int)(ridgeArea / cellArea);
+        std::unordered_map<lapis::cell_t, int> regionArea;
         for (lapis::cell_t c = 0; c < ridgeGroup.ncell(); ++c) {
             if (ridgeGroup[c].has_value()) {
                 regionArea.emplace(ridgeGroup[c].value(), 0);
@@ -201,7 +201,7 @@ namespace rxtools {
         auto canyonGroup = lapis::connectedComponents(canyon, false);
         //get unique names of ridge the remove ridge
         cellArea = canyon.xres() * canyon.yres();
-        nCellArea = canyonArea / cellArea;
+        nCellArea = (int)(canyonArea / cellArea);
         regionArea.clear();
         for (auto c = 0; c < canyonGroup.ncell(); ++c) {
             if (canyonGroup[c].has_value()) {
@@ -278,7 +278,7 @@ namespace rxtools {
         // select large lmu's as seeds.
         auto lmuGrp = lapis::connectedComponents(lmu, false);
         cellArea = canyon.xres() * canyon.yres();
-        nCellArea = canyonArea / cellArea; // canyon area cutoff ~10acres, which is our lmu cutoff.
+        nCellArea = (int)(canyonArea / cellArea); // canyon area cutoff ~10acres, which is our lmu cutoff.
         regionArea.clear();
         for (lapis::cell_t c = 0; c < lmuGrp.ncell(); ++c) {
             if (lmuGrp[c].has_value()) {
@@ -308,7 +308,7 @@ namespace rxtools {
         lmuIds = lmuIds + cc;
         std::cout << "climate done \n";
 
-        std::unordered_map<int, int> regionArea;
+        std::unordered_map<lapis::cell_t, int> regionArea;
         for (lapis::cell_t c = 0; c < lmuIds.ncell(); ++c) {
             if (lmuIds[c].has_value()) {
                 regionArea.emplace(lmuIds[c].value(), 0);
@@ -362,8 +362,8 @@ namespace rxtools {
         return out;
     }
 
-    void ProjectArea::divideLmusThread(int& sofar, std::mutex& mut, std::unordered_map<int, int>& regionArea, lapis::Raster<lapis::cell_t>& lmus, lapis::Raster<lapis::cell_t>& newlmus, const int thisThread) {
-        int nLmu = regionArea.size();
+    void ProjectArea::divideLmusThread(int& sofar, std::mutex& mut, std::unordered_map<lapis::cell_t, int>& regionArea, lapis::Raster<lapis::cell_t>& lmus, lapis::Raster<lapis::cell_t>& newlmus, const int thisThread) {
+        size_t nLmu = regionArea.size();
         while (true) {
             mut.lock();
             int i = sofar;
@@ -371,9 +371,13 @@ namespace rxtools {
             mut.unlock();
             if (i >= nLmu)
                 break;
-            int id = std::next(regionArea.begin(), i)->first;
+            lapis::cell_t id = std::next(regionArea.begin(), i)->first;
             int area = std::next(regionArea.begin(), i)->second;
-            int k = std::ceil((double)area / 650); // 650 cells = 150 acre unit which is max operational size according to jacob baker at stanislaus nf.
+
+            // 650 cells = 150 acre unit which is max operational size according to jacob baker at stanislaus nf.
+            // integer math to avoid casting between double and int which is why we add 649 to area.
+            int k = (area + 649) / 650; 
+
             if (k > 1) {
                 std::cout << "Thread " + std::to_string(thisThread) + " starting lmu subdivision " + std::to_string(i) + "/" + std::to_string(nLmu) + "\n";
                 auto kMeans = utilities::Kmeans(k, 100);
@@ -385,7 +389,7 @@ namespace rxtools {
                 }
                 kMeans.run(allPoints);
                 auto idx = getIndex(k);
-                for (lapis::cell_t j = 0; j < allPoints.size(); ++j) {
+                for (size_t j = 0; j < allPoints.size(); ++j) {
                     newlmus[allPoints[j].cell].value() = idx + allPoints[j].clusterid;
                 }
             }
@@ -403,7 +407,7 @@ namespace rxtools {
         const lapis::Raster<lapis::cell_t>& maskr, const double canopycutoff, double coregapdist, std::pair<lapis::coord_t, lapis::coord_t> expectedRes,
         TaoGettersMP getters, double bbDbh) {
 
-        int ntile = lidarDataset->nTiles();
+        size_t ntile = lidarDataset->nTiles();
         coregapdist = lidarDataset->units()->convertOneToThis(coregapdist, lapis::linearUnitPresets::meter);
         while (true) {
 
@@ -520,7 +524,7 @@ namespace rxtools {
 
     void ProjectArea::postGapThread(lapis::Raster<int>& osiNum, lapis::Raster<int>& osiDen, const TaoListMP& taos, const int nThread, const int thisThread, std::mutex& mut, int& sofar,
         const lapis::Raster<int>& maskr, const double canopycutoff, const double coregapdist, std::pair<lapis::coord_t, lapis::coord_t> expectedRes) {
-        int ntile = lidarDataset->nTiles();
+        size_t ntile = lidarDataset->nTiles();
 
         auto l = lapis::VectorDataset<lapis::Polygon>(processedfolder::stringOrThrow(lidarDataset->tileLayoutVector()));
 
@@ -575,8 +579,6 @@ namespace rxtools {
                 chm[c].has_value() = basinMap[c].has_value();
             }
             chm.defineCRS(maskr.crs());
-
-            //lapis::coord_t chmres = lapis::Raster<int>(processedfolder::stringOrThrow(lidarDataset->maxHeightRaster(0))).xres() * lidarDataset->getConvFactor();
 
             lapis::Alignment thisalign{ maskr };
             thisalign = lapis::cropAlignment(thisalign, chm, lapis::SnapType::out);

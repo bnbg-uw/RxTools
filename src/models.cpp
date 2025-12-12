@@ -118,14 +118,14 @@ namespace rxtools::allometry {
             }
         }
 
-        double n = (*xpo).size();
+        size_t n = (*xpo).size();
         double sumx = 0;
         double sumx2 = 0;
         double sumxy = 0;
         double sumy = 0;
         double sumy2 = 0;
 
-        for (int i = 0; i < n; ++i) {
+        for (size_t i = 0; i < n; ++i) {
             sumx += (*xpo)[i];
             sumx2 += (*xpo)[i] * (*xpo)[i];
             sumxy += (*xpo)[i] * (*ypo)[i];
@@ -173,8 +173,8 @@ namespace rxtools::allometry {
         //double will be cast to int implicitly
         std::unordered_map<int, int> spcdTable;
         for (auto v : treeList.otherfields.at(spcdIdx)) {
-            spcdTable.emplace(v, 0);
-            ++spcdTable[v];
+            spcdTable.emplace((int)v, 0);
+            ++spcdTable[(int)v];
         }
         for (auto& v : spcdTable) {
             v.second = (int)std::round((double)v.second / treeList.otherfields.at(spcdIdx).size() * 100);

@@ -4,7 +4,7 @@
 #include "rasteralgos.hpp"
 
 namespace rxtools::utilities {
-    inline int randomIdxFromWeights(std::vector<double>& weights, std::default_random_engine& dre) {
+    inline size_t randomIdxFromWeights(std::vector<double>& weights, std::default_random_engine& dre) {
         double sumOfWeight = 0;
         for (int i = 0; i < weights.size(); i++) {
             sumOfWeight += weights[i];
@@ -37,10 +37,10 @@ namespace rxtools::utilities {
     struct Kpoint {
     public:
         double x, y;
-        int cell;
+        lapis::cell_t cell;
         int clusterid;
 
-        Kpoint(double x, double y, int c) : x(x), y(y), cell(c) {
+        Kpoint(double x, double y, lapis::cell_t c) : x(x), y(y), cell(c) {
             clusterid = -1;
         }
     };
@@ -55,7 +55,7 @@ namespace rxtools::utilities {
             points.push_back(centroid);
         };
 
-        int size() {
+        size_t size() {
             return points.size();
         }
     };

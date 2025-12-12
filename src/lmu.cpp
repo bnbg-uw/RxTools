@@ -3,23 +3,23 @@
 
 namespace rxtools {
 
-    Lmu::Lmu(std::string path, TaoGetters<lapis::VectorDataset<lapis::Point>> getters) {
+    Lmu::Lmu(std::string path, TaoGettersMP getters) {
         try {
-            mask = lapis::Raster<int>(path + "ridgeTop.img");
+            mask = lapis::Raster<lapis::cell_t>(path + "ridgeTop.img");
             type = LmuType::ridgeTop;
         }
         catch (lapis::InvalidRasterFileException e) {
             try {
-                mask = lapis::Raster<int>(path + "valleyBottom.img");
+                mask = lapis::Raster<lapis::cell_t>(path + "valleyBottom.img");
                 type = LmuType::valleyBottom;
             }
             catch (lapis::InvalidRasterFileException e) {
                 try {
-                    mask = lapis::Raster<int>(path + "swFacing.img");
+                    mask = lapis::Raster<lapis::cell_t>(path + "swFacing.img");
                     type = LmuType::swFacing;
                 }
                 catch (lapis::InvalidRasterFileException e) {
-                    mask = lapis::Raster<int>(path + "nwFacing.img");
+                    mask = lapis::Raster<lapis::cell_t>(path + "nwFacing.img");
                     type = LmuType::neFacing;
                 }
             }
@@ -32,21 +32,20 @@ namespace rxtools {
         }
     }
 
-    void Lmu::makeUnits(lapis::VectorDataset<lapis::MultiPolygon> unitsPoly, TaoList<lapis::VectorDataset<lapis::Point>> tl, lapis::Raster<int> osiNum, lapis::Raster<int> osiDen, double convFactor, bool overrideTargets) {
-        if (units.size()) throw std::runtime_error("Units have already been calculated");
-        units.reserve(unitsPoly.nFeature());
+    void Lmu::makeUnits(const lapis::VectorDataset<lapis::MultiPolygon>& unitsPoly, const TaoListMP& tl, const lapis::Raster<int>& osiNum, const lapis::Raster<int>& osiDen, const bool& overrideTargets) {
+        if (units.size()) {
+            throw std::runtime_error("Units have already been calculated");
+        }
         
         for (int i = 0; i < unitsPoly.nFeature(); i++) {
             if (unitsPoly.getFeature(i).getGeometry().boundingBox().overlaps(mask)) {
                 auto unitMask = mask;
                 unitMask = lapis::extendRaster(unitMask, unitsPoly.getFeature(i).getGeometry().boundingBox(), lapis::SnapType::out);
-                auto x = std::chrono::high_resolution_clock::now().time_since_epoch().count();
                 unitMask = lapis::cropRaster(unitMask, unitsPoly.getFeature(i).getGeometry().boundingBox(), lapis::SnapType::out);
-                unitMask.mask(unitsPoly.getFeature(i).getGeometry());
+                unitMask.maskByMultiPolygon(unitsPoly.getFeature(i).getGeometry());
                 if (!unitMask.hasAnyValue())
                     continue;
-
-                unitMask.trim();
+                unitMask = lapis::trimRaster(unitMask);
 
                 auto thisNum = lapis::cropRaster(osiNum, unitMask, lapis::SnapType::out);
                 auto thisDen = lapis::cropRaster(osiDen, unitMask, lapis::SnapType::out);
@@ -54,8 +53,6 @@ namespace rxtools {
                 thisDen.mask(unitMask);
                 double num = 0;
                 double den = 0;
-
-
                 for (lapis::cell_t x = 0; x < thisNum.ncell(); ++x) {
                     if (thisNum[x].has_value()) {
                         num += thisNum[x].value();
@@ -65,7 +62,7 @@ namespace rxtools {
                 double osi = num / den * 100;
 
                 try {
-                    auto rx = RxUnit(unitMask, tl, osi, convFactor);
+                    auto rx = RxUnit(unitMask, tl, osi);
                     if (rx.areaHa > 0.5) {
                         units.push_back(rx);
                         if (overrideTargets) {
@@ -134,7 +131,7 @@ namespace rxtools {
             int j;
             if (outerIdx.size()) {
                 std::cout << "Choosing random target from options\n";
-                std::vector<double> w(1, outerIdx.size());
+                std::vector<double> w(outerIdx.size(), 1);
                 j = outerIdx[utilities::randomIdxFromWeights(w, dre)];
                 units[i].paired = true;
             }

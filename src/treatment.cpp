@@ -4,7 +4,7 @@ namespace rxtools {
     using ns = lapis::lico::NodeStatus;
 
     void Treatment::obligateIdx(TaoListMP& tl, std::vector<treatmentDecision>& treeStatus, std::vector<size_t>& treeIdx, size_t& focalIdx, std::unordered_set<size_t>& keepSet) {
-        std::vector<int> testIdx; //These are idx in the total dataset to test as focals.
+        std::vector<size_t> testIdx; //These are idx in the total dataset to test as focals.
         
         //Get all the trees that are not already known as keeps, but are obligate retzins and clump with the focal tree
         for (size_t i : treeIdx) {
@@ -153,7 +153,7 @@ namespace rxtools {
 
             //seedNode.turnOn();
             //currentba += seedNode.ba;
-            int binIdx = utilities::randomIdxFromWeights(binWeights, dre);
+            size_t binIdx = utilities::randomIdxFromWeights(binWeights, dre);
             std::uniform_int_distribution<int> d(binMins[binIdx], binMaxs[binIdx]);
             int targN = d(dre);
             if (targN > maxClump) {
@@ -346,7 +346,7 @@ namespace rxtools {
 
             //Target qmd
             double qmdTarg = std::sqrt(targets.ba / targets.tph / 0.0000785);
-            size_t ntaoTarg = std::round(targets.tph * area);
+            size_t ntaoTarg = (size_t)std::round(targets.tph * area);
 
             double fullqmd = std::sqrt(bafull / nfull / 0.0000785);
 

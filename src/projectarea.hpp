@@ -26,7 +26,7 @@ namespace rxtools {
         lapis::Raster<int> bbOsiDen;
         lapis::Raster<int> bbOsiNum;
 
-        std::unordered_map<int, int> regionType;
+        std::unordered_map<lapis::cell_t, lapis::cell_t> regionType;
 
         ProjectArea() = default;
         //lmu param can be moderate or steep
@@ -39,7 +39,7 @@ namespace rxtools {
                                                             lapis::VectorDataset<lapis::MultiPolygon> projectPoly = lapis::VectorDataset<lapis::MultiPolygon>());
         void subdivideLmus(std::string climateClassPath, int nThread);
         int getIndex(int n);
-        void divideLmusThread(int& sofar, std::mutex& mut, std::unordered_map<int, int>& regionArea, lapis::Raster<lapis::cell_t>& lmus, lapis::Raster<lapis::cell_t>& newlmus, const int thisThread);
+        void divideLmusThread(int& sofar, std::mutex& mut, std::unordered_map<lapis::cell_t, int>& regionArea, lapis::Raster<lapis::cell_t>& lmus, lapis::Raster<lapis::cell_t>& newlmus, const int thisThread);
         void createCoreGapAndReadTaos(int nThread, double bbDbh, TaoGettersMP getters);
 
         Lmu createLmuThread(int& sofar, const int thisThread);

@@ -6,7 +6,7 @@
 namespace rxtools {
     class Output {
     public:  
-        lapis::Raster<int> ids;
+        lapis::Raster<lapis::cell_t> ids;
         lapis::AttributeTable atts;
         std::vector<lapis::Raster<double>> pre;
         std::vector<lapis::Raster<double>> post;
@@ -128,14 +128,6 @@ namespace rxtools {
 
             lmus.writeRaster((p / "lmus.img").string());
             lmuIds.writeRaster((p / "lmuIds.img").string());
-            lapis::Raster<double> lmuStats{ (lapis::Alignment)lmuIds };
-            lapis::Raster<double> lmuDelta{ (lapis::Alignment)lmuIds };
-            for (lapis::cell_t i = 0; i < lmuStats.ncell(); ++i) {
-                if (lmuIds[i].has_value()) {
-                    lmuStats[i].has_value() = true;
-                    lmuDelta[i].has_value() = true;
-                }
-            }
 
             for (int i = 0; i < names.size(); ++i) {
                 if (i == 0 || i == 1) {
@@ -168,11 +160,15 @@ namespace rxtools {
 
                 }
 
-                auto preZonal = lapis::zonalStatisticsByRaster(pre[i], lmuIds, zMean);
+                lapis::Raster<double> lmuStats{ (lapis::Alignment)lmuIds };
+                lapis::Raster<double> lmuDelta{ (lapis::Alignment)lmuIds };
+
+                auto preZonal = lapis::zonalMean(pre[i], lmuIds);
                 for (auto z : preZonal) {
                     for (int j = 0; j < lmuStats.ncell(); ++j) {
                         if (lmuIds[j].value() == z.first) {
-                            lmuStats[j].value() = z.second.value();
+                            lmuStats[j].value() = z.second;
+                            lmuStats[j].has_value() = true;
                         }
                     }
                 }
@@ -189,11 +185,11 @@ namespace rxtools {
                     lmuStats.writeRaster((p / ("LMU_CurrentStructure_" + names[i] + ".img")).string());
                 lmuDelta = lmuStats;
 
-                auto postZonal = lsmetrics::zonalStatisticsByRaster(post[i], lmuIds, zMean);
+                auto postZonal = lapis::zonalMean(post[i], lmuIds);
                 for (auto z : postZonal) {
                     for (int j = 0; j < lmuStats.ncell(); ++j) {
                         if (lmuIds[j].value() == z.first) {
-                            lmuStats[j].value() = z.second.value();
+                            lmuStats[j].value() = z.second;
                         }
                     }
                 }
@@ -217,11 +213,11 @@ namespace rxtools {
                     lmuDelta.writeRaster((p / ("LMU_DeltaStructure_" + names[i] + ".img")).string());
                 }
 
-                auto targZonal = lsmetrics::zonalStatisticsByRaster(target[i], lmuIds, zMean);
+                auto targZonal = lapis::zonalMean(target[i], lmuIds);
                 for (auto z : targZonal) {
                     for (int j = 0; j < lmuStats.ncell(); ++j) {
                         if (lmuIds[j].value() == z.first) {
-                            lmuStats[j].value() = z.second.value();
+                            lmuStats[j].value() = z.second;
                         }
                     }
                 }
@@ -243,7 +239,6 @@ namespace rxtools {
         }
 
     private:
-        lsmetrics::zonal_function<xtl::xoptional<double>, double> zMean = lsmetrics::zonalNoDataMean<double>;
         std::vector<std::string> names = { "Ba", "Tp", "Mcs", "Osi", "Cc"};
     };
 } //namespace rxtools
