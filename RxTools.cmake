@@ -28,6 +28,10 @@ set(RXTOOLS_EXTERNAL_LINKS
 	${LAPISGIS_LINKS}
 	)
 
+add_library(RxTools STATIC ${RXTOOLS_SOURCES})
+target_include_directories(RxTools PRIVATE ${RXTOOLS_EXTERNAL_INCLUDES})
+target_precompile_headers(RxTools PRIVATE ${RXTOOLS_DIR}/src/rxtools_pch.hpp)
+
 set(RXTOOLS_INCLUDES
 	${RXTOOLS_EXTERNAL_INCLUDES}
 	${RXTOOLS_DIR}/src
