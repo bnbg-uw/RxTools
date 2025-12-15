@@ -4,7 +4,7 @@
 #define rxtools_taolist_h
 
 #include "Vector.hpp"
-#include "lico/src/GraphLico.hpp"
+#include "GraphLico.hpp"
 #include "Coordinate.hpp"
 
 namespace rxtools {

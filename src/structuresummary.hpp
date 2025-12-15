@@ -4,9 +4,9 @@
 #define rxtools_structuresummary_h
 
 #include "rxtools_pch.hpp"
-#include "LapisGis/src/Raster.hpp"
+#include "Raster.hpp"
 #include "allometry.hpp"
-#include "lico/src/GraphLico.hpp"
+#include "GraphLico.hpp"
 
 namespace rxtools {
     namespace bg = boost::geometry;

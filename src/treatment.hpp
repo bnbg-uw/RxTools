@@ -4,7 +4,7 @@
 #define rxtools_treatment_h
 
 #include "rxtools_pch.hpp"
-#include "lico/src/GraphLico.hpp"
+#include "GraphLico.hpp"
 #include "rxunit.hpp"
 #include "structuresummary.hpp"
 
