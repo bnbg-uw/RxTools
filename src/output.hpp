@@ -14,7 +14,8 @@ namespace rxtools {
         lapis::Raster<lapis::cell_t> lmus;
         lapis::Raster<lapis::cell_t> lmuIds;
         std::string commandLine;
-
+        
+        Output() {}
         Output(lapis::Alignment outAlign) : ids(outAlign), lmus(outAlign), lmuIds(outAlign){
             auto colnames = std::vector<std::string>{
                 "ID",

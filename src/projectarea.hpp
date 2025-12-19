@@ -5,7 +5,7 @@
 
 #include "utilities.hpp"
 #include "lmu.hpp"
-#include "ProcessedFolder/src/readProcessedFolder.hpp"
+#include "readProcessedFolder.hpp"
 #include "RasterAlgos.hpp"
 
 namespace rxtools {

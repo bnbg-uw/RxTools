@@ -54,7 +54,6 @@ namespace rxtools::allometry {
         return(os);
     }
 
-
     class FIAReader {
     public:
         PlotList plots;

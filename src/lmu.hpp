@@ -7,7 +7,7 @@
 #include "treatment.hpp"
 #include "utilities.hpp"
 #include "rxunit.hpp"
-#include "ProcessedFolder/src/ProcessedFolder.hpp"
+#include "ProcessedFolder.hpp"
 
 namespace rxtools {
 
