@@ -75,13 +75,12 @@ namespace rxtools::allometry {
 
         template<class T>
         const std::size_t limitByRasterValue(const lapis::Raster<T>& r, const T& v) {
-            lapis::CoordRef fiacrs{ "4326" };
-            lapis::CoordTransform transformToExt = lapis::CoordTransform(fiacrs, r.projection());
+            lapis::CoordTransform transformToExt = lapis::CoordTransform(crs, r.projection());
 
             PlotList newpl;
 
             for (const auto& plot : plots) {
-                auto pt = lapis::Point(plot.second.second, plot.second.first, fiacrs); //make Point from lon, lat.
+                auto pt = lapis::Point(plot.second.second, plot.second.first, crs); //make Point from lon, lat.
                 pt.project(transformToExt);
                 auto atPlot = r.extract(pt.getX(), pt.getY());
                 if (atPlot.has_value() && atPlot.value() == v) {
@@ -93,7 +92,8 @@ namespace rxtools::allometry {
         }
 
         void makePlotTreeMap(const std::vector<std::string> colNames);
-
+        FIATreeList collapsePlotTreeMap();
+        FIATreeList collapseByPlotNames(const std::vector<std::string>& names);
         void calcKNNTree();
 
     private:

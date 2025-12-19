@@ -135,6 +135,38 @@ namespace rxtools::allometry {
         }
     }
 
+    FIATreeList FIAReader::collapsePlotTreeMap() {
+        FIATreeList out;
+        for (auto& x : plotTreeMap) {
+            if (!out.names.size()) {
+                out.names = x.second.names;
+            }
+            auto newSize = out.height.size() + x.second.height.size();
+            out.height.reserve(newSize);
+            out.otherfields.reserve(newSize);
+            out.height.insert(out.height.end(), x.second.height.begin(), x.second.height.end());
+            out.otherfields.insert(out.otherfields.end(), x.second.otherfields.begin(), x.second.otherfields.end());
+        }
+        return out;
+    }
+
+    FIATreeList FIAReader::collapseByPlotNames(const std::vector<std::string>& names) {
+        FIATreeList out;
+        for (auto& x : plotTreeMap) {
+            if (std::find(names.begin(), names.end(), x.first) != names.end()) {
+                if (!out.names.size()) {
+                    out.names = x.second.names;
+                }
+                auto newSize = out.height.size() + x.second.height.size();
+                out.height.reserve(newSize);
+                out.otherfields.reserve(newSize);
+                out.height.insert(out.height.end(), x.second.height.begin(), x.second.height.end());
+                out.otherfields.insert(out.otherfields.end(), x.second.otherfields.begin(), x.second.otherfields.end());
+            }
+        }
+        return out;
+    }
+
     void FIAReader::calcKNNTree() {
         std::vector<PlotPointName> plotPairs;
         for (auto& plot : plots) {
