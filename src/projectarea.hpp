@@ -42,11 +42,11 @@ namespace rxtools {
         void divideLmusThread(int& sofar, std::mutex& mut, std::unordered_map<lapis::cell_t, int>& regionArea, lapis::Raster<lapis::cell_t>& lmus, lapis::Raster<lapis::cell_t>& newlmus, const int thisThread);
         void createCoreGapAndReadTaos(int nThread, double bbDbh, TaoGettersMP getters);
 
-        Lmu createLmuThread(int& sofar, const int thisThread);
-        void coreGapThread(lapis::Raster<int>& osiNum, lapis::Raster<int>& osiDen, lapis::Raster<int>& bbOsiNum, lapis::Raster<int>& bbOsiDen, const int nThread, const int thisThread, std::mutex& mut, int& sofar,
+        Lmu createLmuThread(size_t& sofar, const int thisThread);
+        void coreGapThread(lapis::Raster<int>& osiNum, lapis::Raster<int>& osiDen, lapis::Raster<int>& bbOsiNum, lapis::Raster<int>& bbOsiDen, const int nThread, const int thisThread, std::mutex& mut, size_t& sofar,
             const lapis::Raster<lapis::cell_t>& maskr, const double canopycutoff, double coregapdist, std::pair<lapis::coord_t, lapis::coord_t> expectedRes,
             TaoGettersMP getters, double bbDbh);
-        void postGapThread(lapis::Raster<int>& osiNum, lapis::Raster<int>& osiDen, const TaoListMP& taos, const int nThread, const int thisThread, std::mutex& mut, int& sofar,
+        void postGapThread(lapis::Raster<int>& osiNum, lapis::Raster<int>& osiDen, const TaoListMP& taos, const int nThread, const int thisThread, std::mutex& mut, size_t& sofar,
             const lapis::Raster<lapis::cell_t>& maskr, const double canopycutoff, const double coregapdist, std::pair<lapis::coord_t, lapis::coord_t> expectedRes);
 
     };

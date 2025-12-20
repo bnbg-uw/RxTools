@@ -49,7 +49,7 @@ namespace rxtools {
 
         void addRxUnit(RxUnit& rx, int lmuCode) {
             lapis::overlayInside(ids, rx.unitMask);
-            int thisId = -1;
+            lapis::cell_t thisId = -1;
             for (lapis::cell_t i = 0; i < rx.unitMask.ncell(); ++i) {
                 if (rx.unitMask[i].has_value()) {
                     thisId = rx.unitMask[i].value();

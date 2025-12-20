@@ -48,24 +48,7 @@ public:
 
     RxUnit() = default;
 
-    template<class T>
-    RxUnit(lapis::Raster<T> mask, const TaoListMP& tl, double osi) : unitMask(mask) {
-        for (lapis::cell_t i = 0; i < mask.ncell(); ++i) {
-            if (unitMask[i].has_value()) {
-                areaHa += unitMask.xres() * unitMask.yres();
-            }
-        }
-        
-        auto conv = mask.crs().getXYLinearUnits()->convertOneFromThis(1, lapis::linearUnitPresets::meter);
-        areaHa *= conv * conv;
-        areaHa /= 10000.0;
-
-        for (int i = 0; i < tl.size(); i++) {
-            if (unitMask.extract(tl.x(i), tl.y(i), lapis::ExtractMethod::near).has_value())
-                taos.taoVector.addFeature(tl.taoVector.getFeature(i));
-        }
-        currentStructure = StructureSummary(taos, unitMask, areaHa, osi);
-    }
+    RxUnit(lapis::Raster<lapis::cell_t> mask, const TaoListMP& tl, double osi);
 
     RxUnit(std::string path, TaoGettersMP getters);
 

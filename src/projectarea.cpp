@@ -69,7 +69,7 @@ namespace rxtools {
 
         std::mutex mut{};
         std::vector<std::thread> threads{};
-        int sofar = -1;
+        size_t sofar = -1;
         auto mwThreadFunc = [&](int i) {
             try {
                 coreGapThread(osiNum, osiDen, bbOsiNum, bbOsiDen, nThread, i, mut, sofar, lmuRaster, 2, 6, expectedRes, getters, bbDbh);
@@ -108,7 +108,7 @@ namespace rxtools {
         bbOsiDen.mask(lmuRaster);
     }
     
-    Lmu ProjectArea::createLmuThread(int& sofar, const int thisThread) {
+    Lmu ProjectArea::createLmuThread(size_t& sofar, const int thisThread) {
         lapis::cell_t id = std::next(regionType.begin(), sofar)->first;
         lapis::cell_t type = std::next(regionType.begin(), sofar)->second;
         
@@ -403,7 +403,7 @@ namespace rxtools {
         }
     }
 
-    void ProjectArea::coreGapThread(lapis::Raster<int>& osiNum, lapis::Raster<int>& osiDen, lapis::Raster<int>& bbOsiNum, lapis::Raster<int>& bbOsiDen, const int nThread, const int thisThread, std::mutex& mut, int& sofar,
+    void ProjectArea::coreGapThread(lapis::Raster<int>& osiNum, lapis::Raster<int>& osiDen, lapis::Raster<int>& bbOsiNum, lapis::Raster<int>& bbOsiDen, const int nThread, const int thisThread, std::mutex& mut, size_t& sofar,
         const lapis::Raster<lapis::cell_t>& maskr, const double canopycutoff, double coregapdist, std::pair<lapis::coord_t, lapis::coord_t> expectedRes,
         TaoGettersMP getters, double bbDbh) {
 
@@ -522,7 +522,7 @@ namespace rxtools {
 
 
 
-    void ProjectArea::postGapThread(lapis::Raster<int>& osiNum, lapis::Raster<int>& osiDen, const TaoListMP& taos, const int nThread, const int thisThread, std::mutex& mut, int& sofar,
+    void ProjectArea::postGapThread(lapis::Raster<int>& osiNum, lapis::Raster<int>& osiDen, const TaoListMP& taos, const int nThread, const int thisThread, std::mutex& mut, size_t& sofar,
         const lapis::Raster<lapis::cell_t>& maskr, const double canopycutoff, const double coregapdist, std::pair<lapis::coord_t, lapis::coord_t> expectedRes) {
         size_t ntile = lidarDataset->nTiles();
 

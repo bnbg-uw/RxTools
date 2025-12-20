@@ -38,7 +38,7 @@ public:
             throw lapis::OutsideExtentException();
         }
 
-        auto thisUnits = lapis::cropRaster(unitsRaster, mask);
+        auto thisUnits = lapis::cropRaster(unitsRaster, mask, lapis::SnapType::out);
         thisUnits.mask(mask);
         std::unordered_set<T> ids;
         for (lapis::cell_t i = 0; i < thisUnits.ncell(); i++) {
@@ -47,15 +47,16 @@ public:
         }
 
         for (T id : ids) {
-            auto unitMask = thisUnits;
-            for (lapis::cell_t c = 0; c < unitMask.ncell(); ++c) {
-                if (unitMask[c].value() != id) {
-                    unitMask[c].has_value() = false;
+            lapis::Raster<lapis::cell_t> unitMask{ (lapis::Alignment)thisUnits };
+            for (lapis::cell_t c = 0; c < thisUnits.ncell(); ++c) {
+                if (thisUnits[c].has_value() && thisUnits[c].value() == id) {
+                    unitMask[c].has_value() = true;
+                    unitMask[c].value() = static_cast<lapis::cell_t>(thisUnits[c].value());
                 }
             }
             unitMask = lapis::trimRaster(unitMask);
             
-            if (unitMask.anyHasValue()) {
+            if (unitMask.hasAnyValue()) {
                 auto thisNum = lapis::cropRaster(osiNum, unitMask, lapis::SnapType::out);
                 auto thisDen = lapis::cropRaster(osiDen, unitMask, lapis::SnapType::out);
                 thisNum.mask(unitMask);
@@ -69,7 +70,7 @@ public:
                     }
                 }
                 double osi = num / den * 100;
-
+                
                 auto rx = RxUnit(unitMask, tl, osi);
                 if (rx.areaHa > 0.5) {
                     units.push_back(rx);

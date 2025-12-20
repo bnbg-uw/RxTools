@@ -64,11 +64,9 @@ namespace rxtools::utilities {
             //Compute the eigenvalues and eigenvectors of the cov matrix
             eigenSolver.compute(cov);
             eigenVectors = eigenSolver.pseudoEigenvectors();
-            for (int i = 0; i < 3; ++i) {
-                eigenVectors.rowwise().reverse().transposeInPlace();
-            }
+            eigenVectors = eigenVectors.rowwise().reverse().transpose().eval();
             eigenVectors = eigenVectors.rowwise().reverse().eval();
-            eigenVectors.transposeInPlace();
+            eigenVectors.transposeInPlace();  // This one is fine since it's on the actual matrix
             data = predict(inData);
 
             //Calculate variable importance for weighting distances
