@@ -27,12 +27,17 @@ namespace rxtools::allometry {
             responseIdx = std::distance(treeList.names.begin(), it);
         }
         
+        std::vector<double> response;
+        for (size_t i = 0; i < treeList.otherfields.size(); ++i) {
+            response.push_back(treeList.otherfields.at(i).at(responseIdx));
+        }
+
         if (transform != Transform::Suggest) {
-            parameters = calcModel(treeList.height, treeList.otherfields.at(responseIdx), transform);
+            parameters = calcModel(response, treeList.height, transform);
         }
         else {
             for (int t = static_cast<int>(Transform::None); t != static_cast<int>(Transform::Suggest); ++t) {
-                auto p = calcModel(treeList.height, treeList.otherfields.at(responseIdx), static_cast<Transform>(t));
+                auto p = calcModel(response, treeList.height, static_cast<Transform>(t));
                 if (p.rsq > parameters.rsq) {
                     parameters = p;
                 }

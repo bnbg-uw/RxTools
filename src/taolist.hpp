@@ -30,6 +30,7 @@ namespace rxtools {
         DATASET taoVector;
 
         TaoList() = default;
+        TaoList(const TaoList<DATASET>& tl, bool empty=false) : taoVector(empty ? lapis::emptyVectorDatasetFromTemplate(tl.taoVector) : tl.taoVector), getters(tl.getters), nodeFactory(tl.nodeFactory) {}
         TaoList(DATASET t, TaoGetters<DATASET> g) : taoVector(t), getters(g), nodeFactory(g.predicate, g.xy, g.radius, g.area, g.dbh) {}
         TaoList(std::string f, TaoGetters<DATASET>  g) : taoVector(DATASET(f)), getters(g), nodeFactory(g.predicate, g.xy, g.radius, g.area, g.dbh) {}
 
@@ -77,9 +78,9 @@ namespace rxtools {
             std::ofstream out;
             out.open(path);
 
-            out << "GridHighX,GridHighY,PolyArea,GridMaxHt,Radius,DBH\n";
+            out << "GridHighX,GridHighY,PolyArea,GridMaxHt,Radius,DBH\n" << std::setprecision(std::numeric_limits<double>::max_digits10);
             for (int i = 0; i < size(); i++) {
-                out << std::setprecision(std::numeric_limits<double>::max_digits10) << x(i) << "," << y(i) << "," << area(i) << "," << height(i) << "," << radius(i) << "," << dbh(i) << "\n";
+                out << x(i) << "," << y(i) << "," << area(i) << "," << height(i) << "," << radius(i) << "," << dbh(i) << "\n";
             }
             out.close();
         }

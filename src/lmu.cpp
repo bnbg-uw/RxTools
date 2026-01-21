@@ -5,21 +5,21 @@ namespace rxtools {
 
     Lmu::Lmu(std::string path, TaoGettersMP getters) {
         try {
-            mask = lapis::Raster<lapis::cell_t>(path + "ridgeTop.img");
+            mask = lapis::Raster<lapis::cell_t>(path + "ridgeTop.tif");
             type = LmuType::ridgeTop;
         }
         catch (lapis::InvalidRasterFileException e) {
             try {
-                mask = lapis::Raster<lapis::cell_t>(path + "valleyBottom.img");
+                mask = lapis::Raster<lapis::cell_t>(path + "valleyBottom.tif");
                 type = LmuType::valleyBottom;
             }
             catch (lapis::InvalidRasterFileException e) {
                 try {
-                    mask = lapis::Raster<lapis::cell_t>(path + "swFacing.img");
+                    mask = lapis::Raster<lapis::cell_t>(path + "swFacing.tif");
                     type = LmuType::swFacing;
                 }
                 catch (lapis::InvalidRasterFileException e) {
-                    mask = lapis::Raster<lapis::cell_t>(path + "nwFacing.img");
+                    mask = lapis::Raster<lapis::cell_t>(path + "nwFacing.tif");
                     type = LmuType::neFacing;
                 }
             }
@@ -162,7 +162,7 @@ namespace rxtools {
             t = "swFacing";
         else
             t = "nwFacing";
-        mask.writeRaster(path + "/" + t + ".img");
+        mask.writeRaster(path + "/" + t + ".tif");
         
         std::ofstream out;
         out.open(path + "/structures.csv");

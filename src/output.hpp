@@ -21,11 +21,11 @@ namespace rxtools {
                 "ID",
                 "curBaHa", "curBaAc", "curTpHa", "curTpAc", "curMCS", "curOSI", "curCC",
                 "refBaHa", "refBaAc", "refTpHa", "refTpAc", "refMCS", "refOSI", "refCC",
-                "treatedBaHa", "treatedBaAc", "treatedTpHa", "treatedTpAc", "treatedMCS", "treatedOSI", "treatedCC",
+                "trtBaHa", "trtBaAc", "trtTpHa", "trtTpAc", "trtMCS", "trtOSI", "trtCC",
                 "dbhMin", "dbhMax", "lmuCode"
             };
             auto types = std::vector<OGRFieldType>{
-                OFTString,
+                OFTInteger,
                 OFTReal, OFTReal, OFTReal, OFTReal, OFTReal, OFTReal, OFTReal,
                 OFTReal, OFTReal, OFTReal, OFTReal, OFTReal, OFTReal, OFTReal,
                 OFTReal, OFTReal, OFTReal, OFTReal, OFTReal, OFTReal, OFTReal,
@@ -48,7 +48,7 @@ namespace rxtools {
         }
 
         void addRxUnit(RxUnit& rx, int lmuCode) {
-            lapis::overlayInside(ids, rx.unitMask);
+            ids.overlayInside(rx.unitMask);
             lapis::cell_t thisId = -1;
             for (lapis::cell_t i = 0; i < rx.unitMask.ncell(); ++i) {
                 if (rx.unitMask[i].has_value()) {
@@ -82,13 +82,13 @@ namespace rxtools {
                     post.push_back(lapis::Raster<double>{ (lapis::Alignment)ids });
                     target.push_back(lapis::Raster<double>{ (lapis::Alignment)ids });
                 }
-                lapis::overlayInside(pre[i], rPre);
-                lapis::overlayInside(post[i], rPost);
-                lapis::overlayInside(target[i],rTarg);
+                pre[i].overlayInside(rPre);
+                post[i].overlayInside(rPost);
+                target[i].overlayInside(rTarg);
             }
 
             atts.addRow();
-            atts.setStringField(atts.nFeature()-1, "ID", std::to_string(thisId));
+            atts.setIntegerField(atts.nFeature()-1, "ID", thisId);
             atts.setRealField(atts.nFeature() - 1, "curBaHa", rx.currentStructure.ba);
             atts.setRealField(atts.nFeature() - 1, "curBaAc", rx.currentStructure.ba * 4.356);
             atts.setRealField(atts.nFeature() - 1, "curTpHa", rx.currentStructure.tph);
@@ -105,13 +105,13 @@ namespace rxtools {
             atts.setRealField(atts.nFeature() - 1, "refOSI", rx.targetStructure.osi);
             atts.setRealField(atts.nFeature() - 1, "refCC", rx.targetStructure.cc);
 
-            atts.setRealField(atts.nFeature() - 1, "treatedBaHa", rx.treatedStructure.ba);
-            atts.setRealField(atts.nFeature() - 1, "treatedBaAc", rx.treatedStructure.ba * 4.356);
-            atts.setRealField(atts.nFeature() - 1, "treatedTpHa", rx.treatedStructure.tph);
-            atts.setRealField(atts.nFeature() - 1, "treatedTpAc", rx.treatedStructure.tph / 2.47105);
-            atts.setRealField(atts.nFeature() - 1, "treatedMCS", rx.treatedStructure.mcs);
-            atts.setRealField(atts.nFeature() - 1, "treatedOSI", rx.treatedStructure.osi);
-            atts.setRealField(atts.nFeature() - 1, "treatedCC", rx.treatedStructure.cc);
+            atts.setRealField(atts.nFeature() - 1, "trtBaHa", rx.treatedStructure.ba);
+            atts.setRealField(atts.nFeature() - 1, "trtBaAc", rx.treatedStructure.ba * 4.356);
+            atts.setRealField(atts.nFeature() - 1, "trtTpHa", rx.treatedStructure.tph);
+            atts.setRealField(atts.nFeature() - 1, "trtTpAc", rx.treatedStructure.tph / 2.47105);
+            atts.setRealField(atts.nFeature() - 1, "trtMCS", rx.treatedStructure.mcs);
+            atts.setRealField(atts.nFeature() - 1, "trtOSI", rx.treatedStructure.osi);
+            atts.setRealField(atts.nFeature() - 1, "trtCC", rx.treatedStructure.cc);
 
             atts.setRealField(atts.nFeature() - 1, "dbhMin", rx.dbhMin);
             atts.setRealField(atts.nFeature() - 1, "dbhMax", rx.dbhMax);
@@ -127,37 +127,37 @@ namespace rxtools {
             cmdLine << commandLine;
             cmdLine.close();
 
-            lmus.writeRaster((p / "lmus.img").string());
-            lmuIds.writeRaster((p / "lmuIds.img").string());
+            lmus.writeRaster((p / "lmus.tif").string());
+            lmuIds.writeRaster((p / "lmuIds.tif").string());
 
             for (int i = 0; i < names.size(); ++i) {
                 if (i == 0 || i == 1) {
-                    pre[i].writeRaster((p / ("Rx_CurrentStructure_" + names[i] + "Ha.img")).string());
-                    post[i].writeRaster((p / ("Rx_TreatedStructure_" + names[i] + "Ha.img")).string());
-                    target[i].writeRaster((p / ("Rx_TargetStructure_" + names[i] + "Ha.img")).string());
+                    pre[i].writeRaster((p / ("Rx_CurrentStructure_" + names[i] + "Ha.tif")).string());
+                    post[i].writeRaster((p / ("Rx_TreatedStructure_" + names[i] + "Ha.tif")).string());
+                    target[i].writeRaster((p / ("Rx_TargetStructure_" + names[i] + "Ha.tif")).string());
 
                     auto delta = post[i] - pre[i];
-                    delta.writeRaster((p / ("Rx_DeltaStructure_" + names[i] + "Ha.img")).string());
+                    delta.writeRaster((p / ("Rx_DeltaStructure_" + names[i] + "Ha.tif")).string());
 
                     if (i == 0) {
-                        (pre[i] * 4.356).writeRaster((p / ("Rx_CurrentStructure_" + names[i] + "Ac.img")).string());
-                        (post[i] * 4.356).writeRaster((p / ("Rx_TreatedStructure_" + names[i] + "Ac.img")).string());
-                        (target[i] * 4.356).writeRaster((p / ("Rx_TargetStructure_" + names[i] + "Ac.img")).string());
-                        (delta * 4.356).writeRaster((p / ("Rx_DeltaStructure_" + names[i] + "Ac.img")).string());
+                        (pre[i] * 4.356).writeRaster((p / ("Rx_CurrentStructure_" + names[i] + "Ac.tif")).string());
+                        (post[i] * 4.356).writeRaster((p / ("Rx_TreatedStructure_" + names[i] + "Ac.tif")).string());
+                        (target[i] * 4.356).writeRaster((p / ("Rx_TargetStructure_" + names[i] + "Ac.tif")).string());
+                        (delta * 4.356).writeRaster((p / ("Rx_DeltaStructure_" + names[i] + "Ac.tif")).string());
                     }
                     else {
-                        (pre[i] / 2.47105).writeRaster((p / ("Rx_CurrentStructure_" + names[i] + "Ac.img")).string());
-                        (post[i] / 2.47105).writeRaster((p / ("Rx_TreatedStructure_" + names[i] + "Ac.img")).string());
-                        (target[i] / 2.47105).writeRaster((p / ("Rx_TargetStructure_" + names[i] + "Ac.img")).string());
-                        (delta / 2.47105).writeRaster((p / ("Rx_DeltaStructure_" + names[i] + "Ac.img")).string());
+                        (pre[i] / 2.47105).writeRaster((p / ("Rx_CurrentStructure_" + names[i] + "Ac.tif")).string());
+                        (post[i] / 2.47105).writeRaster((p / ("Rx_TreatedStructure_" + names[i] + "Ac.tif")).string());
+                        (target[i] / 2.47105).writeRaster((p / ("Rx_TargetStructure_" + names[i] + "Ac.tif")).string());
+                        (delta / 2.47105).writeRaster((p / ("Rx_DeltaStructure_" + names[i] + "Ac.tif")).string());
                     }
                 }
                 else {
-                    pre[i].writeRaster((p / ("Rx_CurrentStructure_" + names[i] + ".img")).string());
-                    post[i].writeRaster((p / ("Rx_TreatedStructure_" + names[i] + ".img")).string());
-                    target[i].writeRaster((p / ("Rx_TargetStructure_" + names[i] + ".img")).string());
+                    pre[i].writeRaster((p / ("Rx_CurrentStructure_" + names[i] + ".tif")).string());
+                    post[i].writeRaster((p / ("Rx_TreatedStructure_" + names[i] + ".tif")).string());
+                    target[i].writeRaster((p / ("Rx_TargetStructure_" + names[i] + ".tif")).string());
                     auto delta = post[i] - pre[i];
-                    delta.writeRaster((p / ("Rx_DeltaStructure_" + names[i] + ".img")).string());
+                    delta.writeRaster((p / ("Rx_DeltaStructure_" + names[i] + ".tif")).string());
 
                 }
 
@@ -175,15 +175,15 @@ namespace rxtools {
                 }
 
                 if (i == 0 || i == 1) {
-                    lmuStats.writeRaster((p / ("LMU_CurrentStructure_" + names[i] + "Ha.img")).string());
+                    lmuStats.writeRaster((p / ("LMU_CurrentStructure_" + names[i] + "Ha.tif")).string());
 
                     if (i == 0)
-                        (lmuStats * 4.356).writeRaster((p / ("LMU_CurrentStructure_" + names[i] + "Ac.img")).string());
+                        (lmuStats * 4.356).writeRaster((p / ("LMU_CurrentStructure_" + names[i] + "Ac.tif")).string());
                     else
-                        (lmuStats / 2.47105).writeRaster((p / ("LMU_CurrentStructure_" + names[i] + "Ac.img")).string());
+                        (lmuStats / 2.47105).writeRaster((p / ("LMU_CurrentStructure_" + names[i] + "Ac.tif")).string());
                 }
                 else
-                    lmuStats.writeRaster((p / ("LMU_CurrentStructure_" + names[i] + ".img")).string());
+                    lmuStats.writeRaster((p / ("LMU_CurrentStructure_" + names[i] + ".tif")).string());
                 lmuDelta = lmuStats;
 
                 auto postZonal = lapis::zonalMean(post[i], lmuIds);
@@ -197,21 +197,21 @@ namespace rxtools {
                 lmuDelta = lmuStats - lmuDelta;
 
                 if (i == 0 || i == 1) {
-                    lmuStats.writeRaster((p / ("LMU_TreatedStructure_" + names[i] + "Ha.img")).string());
-                    lmuDelta.writeRaster((p / ("LMU_DeltaStructure_" + names[i] + "Ha.img")).string());
+                    lmuStats.writeRaster((p / ("LMU_TreatedStructure_" + names[i] + "Ha.tif")).string());
+                    lmuDelta.writeRaster((p / ("LMU_DeltaStructure_" + names[i] + "Ha.tif")).string());
 
                     if (i == 0) {
-                        (lmuStats * 4.356).writeRaster((p / ("LMU_TreatedStructure_" + names[i] + "Ac.img")).string());
-                        (lmuDelta * 4.356).writeRaster((p / ("LMU_DeltaStructure_" + names[i] + "Ac.img")).string());
+                        (lmuStats * 4.356).writeRaster((p / ("LMU_TreatedStructure_" + names[i] + "Ac.tif")).string());
+                        (lmuDelta * 4.356).writeRaster((p / ("LMU_DeltaStructure_" + names[i] + "Ac.tif")).string());
                     }
                     else {
-                        (lmuStats / 2.47105).writeRaster((p / ("LMU_TreatedStructure_" + names[i] + "Ac.img")).string());
-                        (lmuDelta / 2.47105).writeRaster((p / ("LMU_DeltaStructure_" + names[i] + "Ac.img")).string());
+                        (lmuStats / 2.47105).writeRaster((p / ("LMU_TreatedStructure_" + names[i] + "Ac.tif")).string());
+                        (lmuDelta / 2.47105).writeRaster((p / ("LMU_DeltaStructure_" + names[i] + "Ac.tif")).string());
                     }
                 }
                 else {
-                    lmuStats.writeRaster((p / ("LMU_TreatedStructure_" + names[i] + ".img")).string());
-                    lmuDelta.writeRaster((p / ("LMU_DeltaStructure_" + names[i] + ".img")).string());
+                    lmuStats.writeRaster((p / ("LMU_TreatedStructure_" + names[i] + ".tif")).string());
+                    lmuDelta.writeRaster((p / ("LMU_DeltaStructure_" + names[i] + ".tif")).string());
                 }
 
                 auto targZonal = lapis::zonalMean(target[i], lmuIds);
@@ -224,15 +224,15 @@ namespace rxtools {
                 }
 
                 if (i == 0 || i == 1) {
-                    lmuStats.writeRaster((p / ("LMU_TargetStructure_" + names[i] + "Ha.img")).string());
+                    lmuStats.writeRaster((p / ("LMU_TargetStructure_" + names[i] + "Ha.tif")).string());
 
                     if (i == 0)
-                        (lmuStats * 4.356).writeRaster((p / ("LMU_TargetStructure_" + names[i] + "Ac.img")).string());
+                        (lmuStats * 4.356).writeRaster((p / ("LMU_TargetStructure_" + names[i] + "Ac.tif")).string());
                     else
-                        (lmuStats / 2.47105).writeRaster((p / ("LMU_TargetStructure_" + names[i] + "Ac.img")).string());
+                        (lmuStats / 2.47105).writeRaster((p / ("LMU_TargetStructure_" + names[i] + "Ac.tif")).string());
                 }
                 else
-                    lmuStats.writeRaster((p / ("LMU_TargetStructure_" + names[i] + ".img")).string());
+                    lmuStats.writeRaster((p / ("LMU_TargetStructure_" + names[i] + ".tif")).string());
             }
 
             auto shp = lapis::rasterToMultiPolygonForTaos(ids, &atts);

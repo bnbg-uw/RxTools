@@ -265,8 +265,8 @@ namespace rxtools {
         if (intermediates) targetstream.close();
 
         //Convert it all to a TaoList
-        TaoListMP keep;
-        TaoListMP cut;
+        TaoListMP keep{ rx.taos, true };
+        TaoListMP cut{ rx.taos, true };
         for (size_t i = 0; i < g.nodes.size(); ++i) {
             if (g.nodes[i].status == ns::on) {
                 keep.taoVector.addFeature(rx.taos(taocrosswalk[i]));

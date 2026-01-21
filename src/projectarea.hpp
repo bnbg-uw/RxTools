@@ -13,6 +13,7 @@ namespace rxtools {
     public:
         std::unique_ptr<processedfolder::ProcessedFolder> lidarDataset;
         TaoListMP allTaos{};
+        bool allTaosInit = false;
         lapis::VectorDataset<lapis::MultiPolygon> projectPoly;
 
         lapis::Raster<double> aet;
@@ -47,7 +48,7 @@ namespace rxtools {
             const lapis::Raster<lapis::cell_t>& maskr, const double canopycutoff, double coregapdist, std::pair<lapis::coord_t, lapis::coord_t> expectedRes,
             TaoGettersMP getters, double bbDbh);
         void postGapThread(lapis::Raster<int>& osiNum, lapis::Raster<int>& osiDen, const TaoListMP& taos, const int nThread, const int thisThread, std::mutex& mut, size_t& sofar,
-            const lapis::Raster<lapis::cell_t>& maskr, const double canopycutoff, const double coregapdist, std::pair<lapis::coord_t, lapis::coord_t> expectedRes);
+            const lapis::Raster<lapis::cell_t>& maskr, const double canopycutoff, double coregapdist, std::pair<lapis::coord_t, lapis::coord_t> expectedRes);
 
     };
 }  // namespace rxtools

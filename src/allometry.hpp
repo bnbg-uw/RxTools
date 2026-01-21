@@ -29,6 +29,25 @@ namespace rxtools::allometry {
 
         std::vector<std::string> names;
         std::vector<std::vector<double>> otherfields;
+
+        void writeCsv(std::filesystem::path path) const {
+            std::ofstream out;
+            out.open(path);
+
+            out << "height";
+            for (int i = 0; i < names.size(); ++i) {
+                out << "," << names[i];
+            }
+            out << "\n" << std::setprecision(std::numeric_limits<double>::max_digits10);
+            for (int i = 0; i < height.size(); i++) {
+                out << height.at(i);
+                for (int j = 0; j < names.size(); ++j) {
+                    out << "," << otherfields.at(i).at(j);
+                }
+                out << "\n";
+            }
+            out.close();
+        }
     };
 
     //abstract base class for various types allometric models we can run.
@@ -102,8 +121,8 @@ namespace rxtools::allometry {
         const std::regex plotCsvRegex{ ".*PLOT\\.csv", std::regex_constants::icase };
         std::regex treeCsvRegex{ ".*TREE\\.csv",std::regex_constants::icase };
 
-        const std::regex xRegex{ "\"?LAT\"?" };
-        const std::regex yRegex{ "\"?LON\"?" };
+        const std::regex xRegex{ "\"?LON\"?" };
+        const std::regex yRegex{ "\"?LAT\"?" };
         const std::regex nameRegex{ "\"?CN\"?" };
 
         void addPlotsFromFile(const std::string& fiaPlotFile);

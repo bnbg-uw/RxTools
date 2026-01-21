@@ -12,10 +12,12 @@ namespace rxtools {
         areaHa *= conv * conv;
         areaHa /= 10000.0;
 
+        taos = TaoListMP(tl, true);
         for (int i = 0; i < tl.size(); i++) {
             if (unitMask.extract(tl.x(i), tl.y(i), lapis::ExtractMethod::near).has_value())
                 taos.taoVector.addFeature(tl.taoVector.getFeature(i));
         }
+        std::cout << "Rxunit taos size: " << taos.size() << "\n";
         currentStructure = StructureSummary(taos, unitMask, areaHa, osi);
     }
 
@@ -155,13 +157,13 @@ namespace rxtools {
     void RxUnit::write(std::string path, allometry::FastFuels ffa) {
         taos.writeCsv(path + "/taos.csv");
         taos.taoVector.writeShapefile(path + "/taos.shp");
-        unitMask.writeRaster(path + "/unitMask.img");
-        //chm.writeRaster(path + "/chm.img");
-        //basinMap.writeRaster(path + "/basinmap.img");
+        unitMask.writeRaster(path + "/unitMask.tif");
+        //chm.writeRaster(path + "/chm.tif");
+        //basinMap.writeRaster(path + "/basinmap.tif");
         treatedTaos.writeCsv(path + "/treatedTaos.csv");
         taos.taoVector.writeShapefile(path + "/treatedTaos.shp");
 
-        //treatedChm.writeRaster(path + "/treatedChm.img");
+        //treatedChm.writeRaster(path + "/treatedChm.tif");
 
         if (ffa.init) {
             writeFastFuelsCsv(path + "/taos_fastFuels.csv", taos, ffa);
@@ -200,11 +202,11 @@ namespace rxtools {
         //std::cout << "dbhf load\n";
         taos = TaoListMP(path + "/taos.shp", getters);
        // std::cout << "taos load\n";
-        unitMask = lapis::Raster<lapis::cell_t>(path + "/unitMask.img");
-        //chm = spatial::Raster<double>(path + "/chm.img");
-        //unitMask = spatial::Raster<int>(path + "/basinmap.img");
+        unitMask = lapis::Raster<lapis::cell_t>(path + "/unitMask.tif");
+        //chm = spatial::Raster<double>(path + "/chm.tif");
+        //unitMask = spatial::Raster<int>(path + "/basinmap.tif");
         treatedTaos = TaoListMP(path + "/treatedTaos.shp", getters);
-        //treatedChm = spatial::Raster<double>(path + "/treatedChm.img");
+        //treatedChm = spatial::Raster<double>(path + "/treatedChm.tif");
 
         //std::cout << "metaddata\n";
         std::filebuf fb;

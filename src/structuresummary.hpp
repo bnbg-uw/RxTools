@@ -65,6 +65,7 @@ namespace rxtools {
                 }
                 mcs /= static_cast<double>(g.nodes.size());
                 cc = cc / 10000. / areaHa;
+                ba = ba / areaHa;
             }
             catch (std::bad_alloc e) {
                 std::cout << "ba/mcs\n";

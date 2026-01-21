@@ -8,7 +8,6 @@ namespace rxtools {
         if (!projectPoly.crs().isConsistent(lidarDataset->crs()))
             projectPoly.projectInPlacePreciseExtent(lidarDataset->crs());
 
-
         auto mask = lapis::Raster<int>(processedfolder::stringOrThrow(lidarDataset->maskRaster()));
         mask = lapis::cropRaster(mask, projectPoly.extent(), lapis::SnapType::out);
 
@@ -23,7 +22,7 @@ namespace rxtools {
             lmuRaster = createLmuRasterFromTpiAndAsp(lidarDataset, lmuParam, projectPoly);
             lmuIds = lapis::connectedComponents(lmuRaster, false);
             std::cout << "\t\tLMU creation done!\n";
-            //lmuRaster.writeRaster("E:/yubalmus.img");
+            //lmuRaster.writeRaster("E:/yubalmus.tif");
         }
         else {
             // check extents etc...
@@ -112,7 +111,7 @@ namespace rxtools {
         lapis::cell_t id = std::next(regionType.begin(), sofar)->first;
         lapis::cell_t type = std::next(regionType.begin(), sofar)->second;
         
-        std::cout << "\t Creating lmu " + std::to_string(sofar) + "/" + std::to_string(regionType.size()) + " " + std::to_string(id) + " on thread " + std::to_string(thisThread) + "\n";
+        std::cout << "\t Creating lmu " + std::to_string(sofar + 1) + "/" + std::to_string(regionType.size()) + " " + std::to_string(id) + " on thread " + std::to_string(thisThread) + "\n";
         auto r = lmuIds;
         for (lapis::cell_t c = 0; c < r.ncell(); ++c) {
             if (r[c].value() != id) {
@@ -146,7 +145,7 @@ namespace rxtools {
             canyonArea /= (convFactor * convFactor);
         }
 
-        std::cout << " TPI ";
+        std::cout << "\t\t\tTPI\n";
         int tpiDist = 500;
         int aspDist = 135;
         // create ridge groups
@@ -409,6 +408,7 @@ namespace rxtools {
 
         size_t ntile = lidarDataset->nTiles();
         coregapdist = lidarDataset->units()->convertOneToThis(coregapdist, lapis::linearUnitPresets::meter);
+        auto maskrbuffer = lapis::bufferExtent(maskr, coregapdist);
         while (true) {
 
             mut.lock();
@@ -420,18 +420,20 @@ namespace rxtools {
             int i = sofar;
             mut.unlock();
 
+            auto before = std::chrono::high_resolution_clock::now();
+
             lapis::Raster<lapis::coord_t> chm;
-            lapis::Raster<int> basinMap;
+            lapis::Raster<lapis::taoid_t> basinMap;
             TaoListMP taos;
             auto e = lidarDataset->extentByTile(i);
             if (!e.has_value()) {
-                std::cerr << "Extent you tried to create from tile does not exist\n";
-                throw std::runtime_error("No extent created.");
+                continue;
             }
             try {
                 if (e.value().overlaps(maskr)) {
                     auto eBuffer = lapis::bufferExtent(e.value(), coregapdist);
-                    std::cout << "Tile " + std::to_string(i) + "/" + std::to_string(ntile) + " on thread " + std::to_string(thisThread) + "\n";
+                    eBuffer = lapis::cropExtent(eBuffer, maskrbuffer);
+                    std::cout << "\t\t\t\tTile " + std::to_string(i) + "/" + std::to_string(ntile) + " on thread " + std::to_string(thisThread) + "\n";
                     taos = TaoListMP(lidarDataset->polygons(eBuffer), getters);
                     chm = lidarDataset->csmRaster(eBuffer).value();
                     basinMap = lidarDataset->watershedSegmentRaster(eBuffer).value();
@@ -446,20 +448,26 @@ namespace rxtools {
             catch (processedfolder::FileNotFoundException e) {
                 continue;
             }
+            auto after = std::chrono::high_resolution_clock::now();
+            auto duration = std::chrono::duration_cast<std::chrono::seconds>(after - before);
+            std::cout << "IO done in " + std::to_string(duration.count()) + "\n";
+            before = after;
 
             auto bbChm = lapis::Raster<int>((lapis::Alignment)chm);
-            for (size_t i = 0; i < taos.size(); ++i) {
-                if (taos.dbh(i) >= bbDbh) {
-                    auto v = basinMap.extract(taos.x(i), taos.y(i), lapis::ExtractMethod::near).value();
-                    for (lapis::cell_t j = 0; j < basinMap.ncell(); j++) {
-                        if (basinMap[j].has_value() && basinMap[j].value() == v) {
-                            if (v == 1) {
-                                if (e.value().contains(taos.x(i), taos.y(i)))
-                                    throw std::runtime_error("yuck");
-                                else
-                                    continue;
-                            }
-                            bbChm[j].value() = 999;
+            for (size_t j = 0; j < taos.size(); ++j) {
+                if (taos.dbh(j) >= bbDbh) {
+                    auto v = basinMap.extract(taos.x(j), taos.y(j), lapis::ExtractMethod::near).value();
+                    //creating a taoextent that is smaller than the full size but larger than the tao could possibly be if it was a single line of pixels. For speed.
+                    auto taoExtent = lapis::Extent(
+                        taos.x(j) - taos.area(j) - basinMap.xres(),
+                        taos.x(j) + taos.area(j) + basinMap.xres(),
+                        taos.y(j) - taos.area(j) - basinMap.yres(),
+                        taos.y(j) + taos.area(j) + basinMap.yres(),
+                        basinMap.crs()
+                    );
+                    for (auto cell : lapis::CellIterator(basinMap, taoExtent, lapis::SnapType::out)) {
+                        if (basinMap[cell].has_value() && basinMap[cell].value() == v) {
+                            bbChm[cell].value() = 999;
                         }
                     }
                 }
@@ -468,6 +476,10 @@ namespace rxtools {
             for (lapis::cell_t c = 0; c < bbChm.ncell(); ++c) {
                 bbChm[c].has_value() = chm[c].has_value();
             }
+            after = std::chrono::high_resolution_clock::now();
+            duration = std::chrono::duration_cast<std::chrono::seconds>(after - before);
+            std::cout << "BBCHM done in " + std::to_string(duration.count()) + "\n";
+            before = after;
 
             chm.defineCRS(maskr.crs());
             bbChm.defineCRS(maskr.crs());
@@ -485,8 +497,17 @@ namespace rxtools {
                     }
                 }
             }
+            after = std::chrono::high_resolution_clock::now();
+            duration = std::chrono::duration_cast<std::chrono::seconds>(after - before);
+            std::cout << "EDT done in " + std::to_string(duration.count()) + "\n";
+            before = after;
+
             lapis::Raster<int> thiscorenum = lapis::aggregateSum(isCoreGap, thisalign);
             lapis::Raster<int> thisden = lapis::aggregateCount(isCoreGap, thisalign);
+            after = std::chrono::high_resolution_clock::now();
+            duration = std::chrono::duration_cast<std::chrono::seconds>(after - before);
+            std::cout << "aggregatea done in " + std::to_string(duration.count()) + "\n";
+            before = after;
 
             edt = lapis::euclideanDistanceTransform(bbChm, [](lapis::coord_t v) { return v >= 2; });
             isCoreGap = lapis::Raster<int>((lapis::Alignment)edt);
@@ -500,22 +521,38 @@ namespace rxtools {
             }
             lapis::Raster<int> thisbbnum = lapis::aggregateSum(isCoreGap, thisalign);
             lapis::Raster<int> thisbbden = lapis::aggregateCount(isCoreGap, thisalign);
+            after = std::chrono::high_resolution_clock::now();
+            duration = std::chrono::duration_cast<std::chrono::seconds>(after - before);
+            std::cout << "EDT2 done in " + std::to_string(duration.count()) + "\n";
+            before = after;
 
             thiscorenum = lapis::cropRaster(thiscorenum, e.value(), lapis::SnapType::out);
             thisden = lapis::cropRaster(thisden, e.value(), lapis::SnapType::out);
             thisbbnum = lapis::cropRaster(thisbbnum, e.value(), lapis::SnapType::out);
             thisbbden = lapis::cropRaster(thisbbden, e.value(), lapis::SnapType::out);
-            
-            mut.lock();
-            lapis::overlayInside(osiNum, thiscorenum);
-            lapis::overlayInside(osiDen, thisden);
-            lapis::overlayInside(bbOsiNum, thisbbnum);
-            lapis::overlayInside(bbOsiDen, thisbbden);
 
-            for (size_t i = 0; i < taos.size(); ++i) {
-                if (e.value().contains(taos.x(i), taos.y(i)))
-                    allTaos.taoVector.addFeature(taos.taoVector.getFeature(i));
+            mut.lock();
+            osiNum.overlayInside(thiscorenum);
+            osiDen.overlayInside(thisden);
+            bbOsiNum.overlayInside(thisbbnum);
+            bbOsiDen.overlayInside(thisbbden);
+            after = std::chrono::high_resolution_clock::now();
+            duration = std::chrono::duration_cast<std::chrono::seconds>(after - before);
+            std::cout << "OVERLAY done in " + std::to_string(duration.count()) + "\n";
+            before = after;
+
+            if (!allTaosInit) {
+                allTaos = TaoListMP(taos, true);
+                allTaosInit = true;
             }
+            for (size_t j = 0; j < taos.size(); ++j) {
+                if (e.value().contains(taos.x(j), taos.y(j))) {
+                    allTaos.taoVector.addFeature(taos.taoVector.getFeature(j));
+                }
+            }
+            after = std::chrono::high_resolution_clock::now();
+            duration = std::chrono::duration_cast<std::chrono::seconds>(after - before);
+            std::cout << "TAOs added done in " + std::to_string(duration.count()) + "\n";
             mut.unlock();
         }
     }
@@ -523,10 +560,10 @@ namespace rxtools {
 
 
     void ProjectArea::postGapThread(lapis::Raster<int>& osiNum, lapis::Raster<int>& osiDen, const TaoListMP& taos, const int nThread, const int thisThread, std::mutex& mut, size_t& sofar,
-        const lapis::Raster<lapis::cell_t>& maskr, const double canopycutoff, const double coregapdist, std::pair<lapis::coord_t, lapis::coord_t> expectedRes) {
+        const lapis::Raster<lapis::cell_t>& maskr, const double canopycutoff, double coregapdist, std::pair<lapis::coord_t, lapis::coord_t> expectedRes) {
         size_t ntile = lidarDataset->nTiles();
-
-        auto l = lapis::VectorDataset<lapis::Polygon>(processedfolder::stringOrThrow(lidarDataset->tileLayoutVector()));
+        coregapdist = lidarDataset->units()->convertOneToThis(coregapdist, lapis::linearUnitPresets::meter);
+        auto maskrbuffer = lapis::bufferExtent(maskr, coregapdist);
 
         while (true) {
             mut.lock();
@@ -538,15 +575,15 @@ namespace rxtools {
             int i = sofar;
             mut.unlock();
 
-            lapis::Raster<int> basinMap;
+            lapis::Raster<lapis::taoid_t> basinMap;
             auto e = lidarDataset->extentByTile(i);
             if (!e.has_value()) {
-                std::cerr << "Extent you tried to create from tile does not exist\n";
-                throw std::runtime_error("No extent created.");
+                continue;
             }
             try {
                 if (e.value().overlaps(maskr)) {
                     auto eBuffer = lapis::bufferExtent(e.value(), coregapdist);
+                    eBuffer = lapis::cropExtent(eBuffer, maskrbuffer);
                     std::cout << "Tile " + std::to_string(i) + "/" + std::to_string(ntile) + " on thread " + std::to_string(thisThread) + "\n";
                     basinMap = lidarDataset->watershedSegmentRaster(eBuffer).value();
                     basinMap = processedfolder::repairResolution(basinMap, expectedRes.first, expectedRes.first, expectedRes.second, expectedRes.second);
@@ -560,16 +597,21 @@ namespace rxtools {
             }
 
             lapis::Raster<int> chm{ (lapis::Alignment) basinMap };
-            for (size_t i = 0; i < taos.size(); ++i) {
-                if (basinMap.contains(taos.x(i), taos.y(i))) {
-                    auto v = basinMap.extract(taos.x(i), taos.y(i), lapis::ExtractMethod::near);
+            for (size_t j = 0; j < taos.size(); ++j) {
+                if (basinMap.contains(taos.x(j), taos.y(j))) {
+                    auto v = basinMap.extract(taos.x(j), taos.y(j), lapis::ExtractMethod::near);
                     if (v.has_value()) {
-                        for (lapis::cell_t j = 0; j < basinMap.ncell(); j++) {
-                            if (basinMap[j].has_value() && basinMap[j].value() == v.value()) {
-                                if (v.value() == 1) {
-                                    continue;
-                                }
-                                chm[j].value() = 999;
+                        //creating a taoextent that is smaller than the full size but larger than the tao could possibly be if it was a single line of pixels. For speed.
+                        auto taoExtent = lapis::Extent(
+                            taos.x(j) - taos.area(j) - basinMap.xres(),
+                            taos.x(j) + taos.area(j) + basinMap.xres(),
+                            taos.y(j) - taos.area(j) - basinMap.yres(),
+                            taos.y(j) + taos.area(j) + basinMap.yres(),
+                            basinMap.crs()
+                        );
+                        for (auto cell : lapis::CellIterator(basinMap, taoExtent, lapis::SnapType::out)) {
+                            if (basinMap[cell].has_value() && basinMap[cell].value() == v.value()) {
+                                chm[cell].value() = 999;
                             }
                         }
                     }
@@ -601,8 +643,8 @@ namespace rxtools {
             thisden = lapis::cropRaster(thisden, e.value(), lapis::SnapType::out);
 
             mut.lock();
-            lapis::overlayInside(osiNum, thiscorenum);
-            lapis::overlayInside(osiDen, thisden);
+            osiNum.overlayInside(thiscorenum);
+            osiDen.overlayInside(thisden);
             mut.unlock();
         }
     }
