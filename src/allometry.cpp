@@ -47,7 +47,9 @@ namespace rxtools::allometry {
             }
         }
         plots = newpl;
-
+        std::erase_if(plotTreeMap, [&](const auto& keyval) {
+            return plots.find(keyval.first) == plots.end();
+            });
         return plots.size();
     }
 

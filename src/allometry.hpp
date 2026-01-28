@@ -93,19 +93,22 @@ namespace rxtools::allometry {
 
         template<class T>
         const std::size_t limitByRasterValue(const lapis::Raster<T>& r, const T& v) {
-            lapis::CoordTransform transformToExt = lapis::CoordTransform(crs, r.projection());
+            lapis::CoordTransform transformToExt = lapis::CoordTransformFactory::getTransform(crs, r.crs());
 
             PlotList newpl;
 
             for (const auto& plot : plots) {
-                auto pt = lapis::Point(plot.second.second, plot.second.first, crs); //make Point from lon, lat.
-                pt.project(transformToExt);
-                auto atPlot = r.extract(pt.getX(), pt.getY());
+                auto pt = lapis::Point(plot.second.x, plot.second.y, crs); //make Point from lon, lat.
+                pt.projectInPlace(transformToExt);
+                auto atPlot = r.extract(pt.x(), pt.y(), lapis::ExtractMethod::near);
                 if (atPlot.has_value() && atPlot.value() == v) {
                     newpl.emplace(plot.first, plot.second);
                 }
             }
             plots = newpl;
+            std::erase_if(plotTreeMap, [&](const auto& keyval) {
+                return plots.find(keyval.first) == plots.end();
+                });
             return plots.size();
         }
 
