@@ -54,7 +54,7 @@ namespace rxtools::allometry {
     class Model {
     public:
         lapis::LinearUnit inputUnit = lapis::linearUnitPresets::unknownLinear; //units the model expects as input
-        lapis::LinearUnit outputUnit = lapis::linearUnitPresets::unknownLinear; //unitis the model expects as output
+        lapis::LinearUnit outputUnit = lapis::linearUnitPresets::unknownLinear; //units the model expects as output
 
         virtual double predict(double x, const lapis::LinearUnit& thisUnit, const lapis::LinearUnit& returnUnit = lapis::linearUnitPresets::meter) const = 0;
         std::vector<double> predict(const std::vector<double>& x, const lapis::LinearUnit& thisUnit, const lapis::LinearUnit& returnUnit = lapis::linearUnitPresets::meter);
