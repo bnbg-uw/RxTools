@@ -18,7 +18,7 @@ namespace rxtools::allometry {
 
     //string is the name of the plot, pair is x,y coords of plot.
     //TODO: Consider if PlotList can be a std::vector<std::pair<bg::point<...>, std::string>
-    //      this way it could be director inserted into boost rtree rather than constructing that which is the current method.
+    //      this way it could be directly inserted into boost rtree rather than constructing that which is the current method.
     //      this would optimize calcKNNTree at the cost of potentially having duplicates in the plotlist.
     //      also plotTreeMap could use the pair as the key? fewer objects at the cost of complexity.
     using PlotList = std::unordered_map<std::string, lapis::CoordXY>;
@@ -109,7 +109,7 @@ namespace rxtools::allometry {
             return plots.size();
         }
 
-        void makePlotTreeMap(const std::vector<std::string> colNames);
+        void makePlotTreeMap(const std::vector<std::string> colNames, int nThread = 1);
         FIATreeList collapsePlotTreeMap();
         FIATreeList collapseByPlotNames(const std::vector<std::string>& names);
         void calcKNNTree();
@@ -132,8 +132,53 @@ namespace rxtools::allometry {
     using AllometryRaster = lapis::Raster < std::shared_ptr<Model>>;
 
     template<class T>
-    AllometryRaster calculateAllometryOverProjectArea(lapis::Raster<T> r) {
-        throw std::exception("Not implemented");
+    AllometryRaster calculateAllometryOverProjectArea(lapis::Raster<T> r, FIAReader fia) {
+        /*using Point = bg::model::point<lapis::coord_t, 2, bg::cs::cartesian>;
+        using Value = std::pair<Point, std::string>;
+
+        rtree already exists at this point!
+        handle projection either in R or in FIA.;
+        bgi::rtree<Value, bgi::quadratic<16>> rtree;
+        for (const auto& [name, coord] : fia.plots) {
+            Point p(coord.x(), coord.y());
+            rtree.insert(std::make_pair(p, name));
+        }
+
+        int id = 0;
+        std::vector<std::pair<std::unordered_set<Value>, int>> knnToId;
+        std::unordered_map<int, std::unordered_set<Value>> idToKnn;
+        std::unordered_map<int, std::vector<lapis::cell_t>> idToCells;
+
+        for (lapis::cell_t c = 0; c < r.ncell(); ++c) {
+            if (r[c].has_value()) {
+                Point query_point(r.xFromCell(c), r.yFromCell());
+
+                Need a better way to pick k.;
+                std::unordered_set<Value> results;
+                rtree.query(bgi::nearest(query_point, 5), std::back_inserter(results));
+                
+                int foundId = -1;
+                for (const auto& p : knnToId) {
+                    if (p.first == results) {
+                        foundId = p.second;
+                    }
+                }
+                if (foundId > -1) {
+                    idToCells.at(foundId).push_back(c);
+                }
+                else {
+                    knnToId.push_back(std::make_pair(results, id));
+                    idToKnn[id] = results;
+                    idToCells[id].push_back(c);
+                    id++;
+                }
+            }
+        }
+
+        for (const auto& p : idToKnn) {
+
+        }
+        throw std::runtime_error("Not implemented yet");*/
     }
 } // namespace rxtools::allometry
 

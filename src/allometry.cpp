@@ -51,7 +51,9 @@ namespace rxtools::allometry {
         return plots.size();
     }
 
-    void FIAReader::makePlotTreeMap(const std::vector<std::string> colNames) {
+    void FIAReader::makePlotTreeMap(const std::vector<std::string> colNames, int nThread) {
+        auto before = std::chrono::high_resolution_clock::now();
+
         for (auto fn : std::filesystem::directory_iterator(fiaFolder)) {
             std::regex plotRegex{ "\"?PLT_CN\"?" }; int plotIdx = -1;
             std::regex htRegex{ "\"?ACTUALHT\"?" }; int htIdx = -1;
@@ -133,6 +135,8 @@ namespace rxtools::allometry {
                 }
             }
         }
+        auto after = std::chrono::high_resolution_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::seconds>(after - before);
     }
 
     FIATreeList FIAReader::collapsePlotTreeMap() {
@@ -177,6 +181,7 @@ namespace rxtools::allometry {
 
     void FIAReader::addPlotsFromFile(const std::string& fiaPlotFile) {
         std::ifstream ifs{ fiaPlotFile };
+
         auto colnames = utilities::readCSVLine(ifs);
         int xidx = -1;
         int yidx = -1;
@@ -211,5 +216,9 @@ namespace rxtools::allometry {
                 continue;
             }
         }
+    }
+
+    void plotsFromFileThread(std::ifstream& ifs, std::mutex& mut) {
+
     }
 } //namespace rxtools::allometry
