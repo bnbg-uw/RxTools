@@ -3,7 +3,6 @@ include_guard(GLOBAL)
 set(RXTOOLS_DIR ${CMAKE_CURRENT_LIST_DIR})
 
 file(GLOB RXTOOLS_SOURCES
-	${RXTOOLS_DIR}/src/*.h
 	${RXTOOLS_DIR}/src/*.hpp
 	${RXTOOLS_DIR}/src/*.cpp)
 
