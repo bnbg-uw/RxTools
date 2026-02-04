@@ -27,10 +27,10 @@ public:
     Lmu(lapis::Raster<lapis::cell_t> mask, LmuType t) : mask(mask), type(t) {};
     Lmu(std::string path, TaoGettersMP getters);
 
-    void makeUnits(const lapis::VectorDataset<lapis::MultiPolygon>& unitsPoly, const TaoListMP& tl, const lapis::Raster<int>& osiNum, const lapis::Raster<int>& osiDen, const bool& overrideTargets);
+    void makeUnits(const lapis::VectorDataset<lapis::MultiPolygon>& unitsPoly, const TaoListMP& tl, const bool& overrideTargets);
 
     template<class T>
-    void makeUnits(const lapis::Raster<T>& unitsRaster, const TaoListMP& tl, const lapis::Raster<int>& osiNum, const lapis::Raster<int>& osiDen) {
+    void makeUnits(const lapis::Raster<T>& unitsRaster, const TaoListMP& tl) {
         if (units.size()) {
             throw std::runtime_error("Units have already been calculated");
         }
@@ -56,22 +56,8 @@ public:
             }
             unitMask = lapis::trimRaster(unitMask);
             
-            if (unitMask.hasAnyValue()) {
-                auto thisNum = lapis::cropRaster(osiNum, unitMask, lapis::SnapType::out);
-                auto thisDen = lapis::cropRaster(osiDen, unitMask, lapis::SnapType::out);
-                thisNum.mask(unitMask);
-                thisDen.mask(unitMask);
-                double num = 0;
-                double den = 0;
-                for (lapis::cell_t i = 0; i < thisNum.ncell(); ++i) {
-                    if (thisNum[i].has_value()) {
-                        num += thisNum[i].value();
-                        den += thisDen[i].value();
-                    }
-                }
-                double osi = num / den * 100;
-                
-                auto rx = RxUnit(unitMask, tl, osi);
+            if (unitMask.hasAnyValue()) {                
+                auto rx = RxUnit(unitMask, tl);
                 if (rx.areaHa > 0.5) {
                     units.push_back(rx);
                 }

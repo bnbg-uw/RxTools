@@ -48,7 +48,7 @@ public:
 
     RxUnit() = default;
 
-    RxUnit(lapis::Raster<lapis::cell_t> mask, const TaoListMP& tl, double osi);
+    RxUnit(lapis::Raster<lapis::cell_t> mask, const TaoListMP& tl);
 
     RxUnit(std::string path, TaoGettersMP getters);
 

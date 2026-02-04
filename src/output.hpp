@@ -19,16 +19,16 @@ namespace rxtools {
         Output(lapis::Alignment outAlign) : ids(outAlign), lmus(outAlign), lmuIds(outAlign){
             auto colnames = std::vector<std::string>{
                 "ID",
-                "curBaHa", "curBaAc", "curTpHa", "curTpAc", "curMCS", "curOSI", "curCC",
-                "refBaHa", "refBaAc", "refTpHa", "refTpAc", "refMCS", "refOSI", "refCC",
-                "trtBaHa", "trtBaAc", "trtTpHa", "trtTpAc", "trtMCS", "trtOSI", "trtCC",
+                "curBaHa", "curBaAc", "curTpHa", "curTpAc", "curMCS", "curCC",
+                "refBaHa", "refBaAc", "refTpHa", "refTpAc", "refMCS", "refCC",
+                "trtBaHa", "trtBaAc", "trtTpHa", "trtTpAc", "trtMCS", "trtCC",
                 "dbhMin", "dbhMax", "lmuCode"
             };
             auto types = std::vector<OGRFieldType>{
                 OFTInteger,
-                OFTReal, OFTReal, OFTReal, OFTReal, OFTReal, OFTReal, OFTReal,
-                OFTReal, OFTReal, OFTReal, OFTReal, OFTReal, OFTReal, OFTReal,
-                OFTReal, OFTReal, OFTReal, OFTReal, OFTReal, OFTReal, OFTReal,
+                OFTReal, OFTReal, OFTReal, OFTReal, OFTReal, OFTReal,
+                OFTReal, OFTReal, OFTReal, OFTReal, OFTReal, OFTReal,
+                OFTReal, OFTReal, OFTReal, OFTReal, OFTReal, OFTReal,
                 OFTReal, OFTReal, OFTInteger
             };
             for (size_t i = 0; i < colnames.size(); ++i) {
@@ -94,7 +94,6 @@ namespace rxtools {
             atts.setRealField(atts.nFeature() - 1, "curTpHa", rx.currentStructure.tph);
             atts.setRealField(atts.nFeature() - 1, "curTpAc", rx.currentStructure.tph / 2.47105);
             atts.setRealField(atts.nFeature() - 1, "curMCS", rx.currentStructure.mcs);
-            atts.setRealField(atts.nFeature() - 1, "curOSI", rx.currentStructure.osi);
             atts.setRealField(atts.nFeature() - 1, "curCC", rx.currentStructure.cc);
 
             atts.setRealField(atts.nFeature() - 1, "refBaHa", rx.targetStructure.ba);
@@ -102,7 +101,6 @@ namespace rxtools {
             atts.setRealField(atts.nFeature() - 1, "refTpHa", rx.targetStructure.tph);
             atts.setRealField(atts.nFeature() - 1, "refTpAc", rx.targetStructure.tph / 2.47105);
             atts.setRealField(atts.nFeature() - 1, "refMCS", rx.targetStructure.mcs);
-            atts.setRealField(atts.nFeature() - 1, "refOSI", rx.targetStructure.osi);
             atts.setRealField(atts.nFeature() - 1, "refCC", rx.targetStructure.cc);
 
             atts.setRealField(atts.nFeature() - 1, "trtBaHa", rx.treatedStructure.ba);
@@ -110,7 +108,6 @@ namespace rxtools {
             atts.setRealField(atts.nFeature() - 1, "trtTpHa", rx.treatedStructure.tph);
             atts.setRealField(atts.nFeature() - 1, "trtTpAc", rx.treatedStructure.tph / 2.47105);
             atts.setRealField(atts.nFeature() - 1, "trtMCS", rx.treatedStructure.mcs);
-            atts.setRealField(atts.nFeature() - 1, "trtOSI", rx.treatedStructure.osi);
             atts.setRealField(atts.nFeature() - 1, "trtCC", rx.treatedStructure.cc);
 
             atts.setRealField(atts.nFeature() - 1, "dbhMin", rx.dbhMin);
@@ -240,6 +237,6 @@ namespace rxtools {
         }
 
     private:
-        std::vector<std::string> names = { "Ba", "Tp", "Mcs", "Osi", "Cc"};
+        std::vector<std::string> names = { "Ba", "Tp", "Mcs", "Cc"};
     };
 } //namespace rxtools

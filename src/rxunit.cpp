@@ -1,7 +1,7 @@
 #include "rxunit.hpp"
 
 namespace rxtools {
-    RxUnit::RxUnit(lapis::Raster<lapis::cell_t> mask, const TaoListMP& tl, double osi) : unitMask(mask) {
+    RxUnit::RxUnit(lapis::Raster<lapis::cell_t> mask, const TaoListMP& tl) : unitMask(mask) {
         for (lapis::cell_t i = 0; i < mask.ncell(); ++i) {
             if (unitMask[i].has_value()) {
                 areaHa += unitMask.xres() * unitMask.yres();
@@ -18,7 +18,7 @@ namespace rxtools {
                 taos.taoVector.addFeature(tl.taoVector.getFeature(i));
         }
         std::cout << "Rxunit taos size: " << taos.size() << "\n";
-        currentStructure = StructureSummary(taos, unitMask, areaHa, osi);
+        currentStructure = StructureSummary(taos, unitMask, areaHa);
     }
 
     std::pair<StructureSummary, StructureSummary> RxUnit::getVirtualMinMax(std::default_random_engine dre, double bbDbh) {
@@ -30,7 +30,6 @@ namespace rxtools {
         max.mcs = currentStructure.mcs;
         max.cc = currentStructure.cc;
         
-        //min.osi = calcOsi(thisChm);
         min.cc = 0;
         min.ba = 0;
         min.tph = 0;
@@ -177,19 +176,19 @@ namespace rxtools {
         out << "dbhMin," << dbhMin << "\n";
         out << "dbhMax," << dbhMax << "\n";
 
-        out << "currentStructure," << currentStructure.ba << "," << currentStructure.tph << "," << currentStructure.mcs << "," << currentStructure.osi << "," << currentStructure.cc;
+        out << "currentStructure," << currentStructure.ba << "," << currentStructure.tph << "," << currentStructure.mcs << "," << currentStructure.cc;
         for (int i = 0; i < currentStructure.csd.size(); ++i) {
             out << "," << currentStructure.binMins[i] << "," << currentStructure.csd[i] << "," << currentStructure.binMaxs[i];
         }
         out << "\n";
 
-        out << "targetStructure," << targetStructure.ba << "," << targetStructure.tph << "," << targetStructure.mcs << "," << targetStructure.osi << "," << targetStructure.cc;
+        out << "targetStructure," << targetStructure.ba << "," << targetStructure.tph << "," << targetStructure.mcs << "," << targetStructure.cc;
         for (int i = 0; i < targetStructure.csd.size(); ++i) {
             out << "," << targetStructure.binMins[i] << "," << targetStructure.csd[i] << "," << targetStructure.binMaxs[i];
         }
         out << "\n";
 
-        out << "treatedStructure," << treatedStructure.ba << "," << treatedStructure.tph << "," << treatedStructure.mcs << "," << treatedStructure.osi << "," << treatedStructure.cc;
+        out << "treatedStructure," << treatedStructure.ba << "," << treatedStructure.tph << "," << treatedStructure.mcs << "," << treatedStructure.cc;
         for (int i = 0; i < treatedStructure.csd.size(); ++i) {
             out << "," << treatedStructure.binMins[i] << "," << treatedStructure.csd[i] << "," << treatedStructure.binMaxs[i];
         }
@@ -212,7 +211,6 @@ namespace rxtools {
         std::filebuf fb;
         if (!fb.open(path + "/metadata.csv", std::ios::in)) throw std::runtime_error("Cannot open metdata file.");
         std::istream is{ &fb };
-
         treated = utilities::readCSVLine(is)[1] == "1";
         areaHa = std::stod(utilities::readCSVLine(is)[1]);
         dbhMin = std::stod(utilities::readCSVLine(is)[1]);
@@ -222,16 +220,16 @@ namespace rxtools {
         std::vector<int> binMins;
         std::vector<double> csd;
         std::vector<int> binMaxs;
-        for (int i = 6; i < row.size(); ++i) {
-            if (i % 3 == 1)
-                csd.push_back(std::stod(row[i]));
+        for (int i = 5; i < row.size(); ++i) {
+            if (i % 3 == 1) // 5 % 3 = 2 = min, 6 % 3 = 0 = csd, 7 % 3 = 1 = max
+                binMaxs.push_back(std::stod(row[i]));
             else if (i % 3 == 2)
-                binMaxs.push_back(std::stoi(row[i]));
-            else
                 binMins.push_back(std::stoi(row[i]));
+            else
+                csd.push_back(std::stoi(row[i]));
         }
         std::cout << csd.size() << " " << binMaxs.size() << " " << binMins.size() << "\n";
-        currentStructure = StructureSummary(std::stod(row[1]), std::stod(row[2]), std::stod(row[3]), std::stod(row[4]), std::stod(row[5]), csd, binMins, binMaxs);
+        currentStructure = StructureSummary(std::stod(row[1]), std::stod(row[2]), std::stod(row[3]), std::stod(row[4]), csd, binMins, binMaxs);
         
         row = utilities::readCSVLine(is);
         binMins.clear();
@@ -239,15 +237,15 @@ namespace rxtools {
         binMaxs.clear();
         for (int i = 5; i < row.size(); ++i) {
             if (i % 3 == 1)
-                csd.push_back(std::stod(row[i]));
+                binMaxs.push_back(std::stod(row[i]));
             else if (i % 3 == 2)
-                binMaxs.push_back(std::stoi(row[i]));
-            else
                 binMins.push_back(std::stoi(row[i]));
+            else
+                csd.push_back(std::stoi(row[i]));
         }
         std::cout << csd.size() << " " << binMaxs.size() << " " << binMins.size() << "\n";
 
-        targetStructure = StructureSummary(std::stod(row[1]), std::stod(row[2]), std::stod(row[3]), std::stod(row[4]), std::stod(row[5]), csd, binMins, binMaxs);
+        targetStructure = StructureSummary(std::stod(row[1]), std::stod(row[2]), std::stod(row[3]), std::stod(row[4]), csd, binMins, binMaxs);
 
         row = utilities::readCSVLine(is);
         binMins.clear();
@@ -255,15 +253,15 @@ namespace rxtools {
         binMaxs.clear();
         for (int i = 5; i < row.size(); ++i) {
             if (i % 3 == 1)
-                csd.push_back(std::stod(row[i]));
+                binMaxs.push_back(std::stod(row[i]));
             else if (i % 3 == 2)
-                binMaxs.push_back(std::stoi(row[i]));
-            else
                 binMins.push_back(std::stoi(row[i]));
+            else
+                csd.push_back(std::stoi(row[i]));
         }
         std::cout << csd.size() << " " << binMaxs.size() << " " << binMins.size() << "\n";
 
-        treatedStructure = StructureSummary(std::stod(row[1]), std::stod(row[2]), std::stod(row[3]), std::stod(row[4]), std::stod(row[5]), csd, binMins, binMaxs);
+        treatedStructure = StructureSummary(std::stod(row[1]), std::stod(row[2]), std::stod(row[3]), std::stod(row[4]), csd, binMins, binMaxs);
 
         fb.close();
     }

@@ -15,17 +15,16 @@ namespace rxtools {
         double ba;
         double tph;
         double mcs;
-        double osi;
         double cc;
         std::vector<double> csd { 0,0,0,0, 0, 0  };
         std::vector<int> binMins{ 1,2,5,10,15,30 };
         std::vector<int> binMaxs{ 1,4,9,14,29,35 };
 
-        StructureSummary() : ba(0), tph(0), mcs(0), osi(0), cc(0) {
+        StructureSummary() : ba(0), tph(0), mcs(0), cc(0) {
             csd = std::vector<double>{ mcsTable[0][2], mcsTable[0][3], mcsTable[0][4], mcsTable[0][5], mcsTable[0][6], mcsTable[0][7] };
         };
 
-        StructureSummary(double ba, double tph, double mcs, double osi, double cc) : ba(ba), tph(tph), mcs(mcs), osi(osi), cc(cc) {
+        StructureSummary(double ba, double tph, double mcs, double cc) : ba(ba), tph(tph), mcs(mcs), cc(cc) {
             if (mcs < 1) mcs = 1;
             for (int i = 0; i < 28; ++i) {
                 if (mcs >= mcsTable[i][0] && (mcs < mcsTable[i][1] || mcsTable[i][1] == 200))
@@ -33,24 +32,19 @@ namespace rxtools {
             }
         };
 
-        StructureSummary(double xba, double xtph, double xmcs, double xosi, double xcc, std::vector<double> xcsd) : ba(xba), tph(xtph), mcs(xmcs), osi(xosi), cc(xcc), csd(xcsd) {
+        StructureSummary(double ba, double tph, double mcs, double cc, std::vector<double> csd) : ba(ba), tph(tph), mcs(mcs), cc(cc), csd(csd) {
 
             if (csd.size() != binMins.size())
                 throw std::invalid_argument("xcsd should be of size 6, when not specifying bins");
         };
 
-        StructureSummary(double ba, double tph, double mcs, double osi, double cc, std::vector<double> csd, std::vector<int> binMins, std::vector<int> binMaxs) :
-            ba(ba), tph(tph), mcs(mcs), osi(osi), csd(csd), cc(cc), binMins(binMins), binMaxs(binMaxs) {
+        StructureSummary(double ba, double tph, double mcs, double cc, std::vector<double> csd, std::vector<int> binMins, std::vector<int> binMaxs) :
+            ba(ba), tph(tph), mcs(mcs), csd(csd), cc(cc), binMins(binMins), binMaxs(binMaxs) {
             if (csd.size() != binMins.size() || csd.size() != binMaxs.size())
                 throw std::invalid_argument("csd, binmins, and binmaxs should all have equal size.");
         };
 
-        StructureSummary(const TaoListMP& taos,
-            const lapis::Alignment& unitAlign,
-            double areaHa,
-            double osi = -1
-            ) : osi(osi)
-        {
+        StructureSummary(const TaoListMP& taos, const lapis::Alignment& unitAlign, double areaHa) {
             lapis::lico::GraphLico g{ unitAlign };
             g.addDataset(taos.taoVector, taos.nodeFactory, lapis::lico::NodeStatus::on);
 
@@ -108,8 +102,7 @@ namespace rxtools {
             if (idx == 0) return ba;
             if (idx == 1) return tph;
             if (idx == 2) return mcs;
-            if (idx == 3) return osi;
-            if (idx == 4) return cc;
+            if (idx == 3) return cc;
             throw std::out_of_range("Index out of bounds");
         }
 
@@ -146,23 +139,6 @@ namespace rxtools {
             {100,  200,  0.1,  0.03, 0.08, 0.59, 0.12, 0.08}
         };
     };
-
-    inline double calcOsi(lapis::Raster<int> chm, lapis::coord_t heightCutoff, lapis::coord_t coreDist) {
-        lapis::Raster<lapis::coord_t> edt = lapis::euclideanDistanceTransform(chm, [heightCutoff](lapis::coord_t v) { return v >= heightCutoff; });
-        lapis::Raster<char> isCoreGap = edt >= coreDist;
-        
-        int osinum = 0;
-        int osiden = 0;
-        for (lapis::cell_t i = 0; i < isCoreGap.ncell(); ++i) {
-            if (isCoreGap[i].has_value()) {
-                if (isCoreGap[i].value()) {
-                    osinum++;
-                }
-                osiden++;
-            }
-        }
-        return (static_cast<double>(osinum) / static_cast<double>(osiden)) * 100.;
-    }
 }
 
 namespace boost {

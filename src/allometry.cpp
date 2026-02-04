@@ -53,72 +53,46 @@ namespace rxtools::allometry {
         return plots.size();
     }
 
-    void FIAReader::makePlotTreeMap(const std::vector<std::string> colNames, int nThread) {
+    void FIAReader::makePlotTreeMap(const std::vector<std::string> colNames) {
         auto before = std::chrono::high_resolution_clock::now();
 
+        std::string plotID{ "PLT_CN" };
+        std::string ht{ "ACTUALHT" };
+        std::string htcd{ "HTCD" };
+
         for (auto fn : std::filesystem::directory_iterator(fiaFolder)) {
-            std::regex plotRegex{ "\"?PLT_CN\"?" }; int plotIdx = -1;
-            std::regex htRegex{ "\"?ACTUALHT\"?" }; int htIdx = -1;
-            std::regex htcdRegex{ "\"?HTCD\"?" }; int htcdIdx = -1;
-
-            std::vector<std::regex> colNamesRegex; {};
-            std::vector<int> colNamesIdx;
-            for (int i = 0; i < colNames.size(); ++i) {
-                colNamesRegex.push_back(std::regex("\"?" + colNames[i] + "\"?", std::regex_constants::icase));
-                colNamesIdx.push_back(-1);
-            }
-
             if (std::regex_match(fn.path().string(), treeCsvRegex)) {
-                std::ifstream ifs{ fn.path().string() };
-                auto colnames = utilities::readCSVLine(ifs);
-                for (int i = 0; i < colnames.size(); ++i) {
-
-                    if (std::regex_match(colnames[i], plotRegex)) {
-                        plotIdx = i;
-                    }
-                    if (std::regex_match(colnames[i], htRegex)) {
-                        htIdx = i;
-                    }
-                    if (std::regex_match(colnames[i], htcdRegex)) {
-                        htcdIdx = i;
-                    }
-                    for (int j = 0; j < colNames.size(); ++j) {
-                        if (std::regex_match(colnames[i], colNamesRegex[j])) {
-                            colNamesIdx[j] = i;
-                        }
-                    }
-
+                csv::CSVReader csv(fn.path().string());
+                auto h = csv.get_col_names();
+                if (
+                    std::find(h.begin(), h.end(), plotID) == h.end() || 
+                    std::find(h.begin(), h.end(), ht) == h.end() ||
+                    std::find(h.begin(), h.end(), htcd) == h.end()
+                    ) {
+                    throw std::runtime_error(plotID + "/" + ht + "/" + htcd + " not found in " + fn.path().string() + ".");
                 }
-
-                if (plotIdx < 0 || htIdx < 0 || htcdIdx < 0) {
-                    throw std::runtime_error(fn.path().string() + " is not formatted correctly.");
-                }
-                for (int i = 0; i < colNames.size(); ++i) {
-                    if(colNamesIdx[i] < 0)
-                        throw std::runtime_error(colNames[i] + " not found in " + fn.path().string() + ".");
-                }
-
-                while (!ifs.eof()) {
-                    auto line = utilities::readCSVLine(ifs);
-                    if (line.size() <= 1) {
-                        continue;
+                for (auto& name : colNames) {
+                    if (std::find(h.begin(), h.end(), name) == h.end()) {
+                        throw std::runtime_error(name + " not found in " + fn.path().string() + ".");
                     }
+                }
+                
+                for(auto& row : csv) {
                     try {
-                        std::string plot = line[plotIdx];
+                        std::string plot = row[plotID].get<>();
                         if (plots.count(plot) == 0) { //not one of the plots we're using
                             continue;
                         }
-
                         //codes 1 and 2 correspond to measuring height; codes 3 and 4 correspond to estimating height
-                        if (std::stoi(line[htcdIdx]) >= 3) {
+                        if (row[htcd].get<int>() >= 3) {
                             continue;
                         }
 
-                        //running all stods first so that if either fails, the code bails before changing the vectors
-                        double thisHeight = std::stod(line[htIdx]);
+                        //running all type conversions first so that if any fail, the code bails before changing the vectors
+                        double thisHeight = row[ht].get<double>();
                         std::vector<double> theseColumns;
                         for (int i = 0; i < colNames.size(); ++i) {
-                            theseColumns.push_back(std::stod(line[colNamesIdx[i]]));
+                            theseColumns.push_back(std::move(row[colNames[i]].get<double>()));
                         }
                         if (plotTreeMap.count(plot) == 0) {
                             FIATreeList add;
@@ -131,7 +105,6 @@ namespace rxtools::allometry {
                             plotTreeMap.at(plot).height.push_back(thisHeight);
                             plotTreeMap.at(plot).otherfields.push_back(theseColumns);
                         }
-                        //f << plot << "," << thisheight << "," << thisresponse << "," << std::stod(line[spcdidx]) << "\n";
                     }
                     catch (...) {} //some of the lines have missing entries; there's no harm in skipping them
                 }
@@ -139,6 +112,7 @@ namespace rxtools::allometry {
         }
         auto after = std::chrono::high_resolution_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::seconds>(after - before);
+        std::cout << "Made plot tree map in " << duration.count() << " seconds.\n";
     }
 
     FIATreeList FIAReader::collapsePlotTreeMap() {
@@ -182,45 +156,19 @@ namespace rxtools::allometry {
     }
 
     void FIAReader::addPlotsFromFile(const std::string& fiaPlotFile) {
-        std::ifstream ifs{ fiaPlotFile };
-
-        auto colnames = utilities::readCSVLine(ifs);
-        int xidx = -1;
-        int yidx = -1;
-        int nameidx = -1;
-        for (int i = 0; i < colnames.size(); ++i) {
-            if (std::regex_match(colnames[i], xRegex)) {
-                xidx = i;
-            }
-            else if (std::regex_match(colnames[i], yRegex)) {
-                yidx = i;
-            }
-            else if (std::regex_match(colnames[i], nameRegex)) {
-                nameidx = i;
-            }
-        }
-        if (xidx == -1 || yidx == -1 || nameidx == -1) {
-            throw std::runtime_error(fiaPlotFile + " is not formatted correctly.");
-        }
-
-        while (!ifs.eof()) {
-            auto row = utilities::readCSVLine(ifs);
-            if (row.size() <= 1) {
-                continue;
-            }
+        csv::CSVReader csv(fiaPlotFile);
+        int nskip = 0;
+        int ntot = 0;
+        for(auto& row : csv) {
+            ntot++;
             try {
-                lapis::coord_t x = std::stod(row[xidx]);
-                lapis::coord_t y = std::stod(row[yidx]);
-                std::string name = row[nameidx];
-                plots.emplace(name, lapis::CoordXY(x, y));
+                plots.emplace(row["CN"].get<>(), lapis::CoordXY((lapis::coord_t)row["LON"].get<double>(), (lapis::coord_t)row["LAT"].get<double>()));
             }
-            catch (...) { //there will be ocassional broken lines
+            catch (std::runtime_error e) {
+                nskip++;
                 continue;
             }
         }
-    }
-
-    void plotsFromFileThread(std::ifstream& ifs, std::mutex& mut) {
-
+        std::cout << "Loaded " << plots.size() << " plots from " << fiaPlotFile << ". Skipped " << nskip << " of " << ntot << " total.\n";
     }
 } //namespace rxtools::allometry

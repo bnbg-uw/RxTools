@@ -32,7 +32,7 @@ namespace rxtools {
         }
     }
 
-    void Lmu::makeUnits(const lapis::VectorDataset<lapis::MultiPolygon>& unitsPoly, const TaoListMP& tl, const lapis::Raster<int>& osiNum, const lapis::Raster<int>& osiDen, const bool& overrideTargets) {
+    void Lmu::makeUnits(const lapis::VectorDataset<lapis::MultiPolygon>& unitsPoly, const TaoListMP& tl, const bool& overrideTargets) {
         if (units.size()) {
             throw std::runtime_error("Units have already been calculated");
         }
@@ -47,22 +47,8 @@ namespace rxtools {
                     continue;
                 unitMask = lapis::trimRaster(unitMask);
 
-                auto thisNum = lapis::cropRaster(osiNum, unitMask, lapis::SnapType::out);
-                auto thisDen = lapis::cropRaster(osiDen, unitMask, lapis::SnapType::out);
-                thisNum.mask(unitMask);
-                thisDen.mask(unitMask);
-                double num = 0;
-                double den = 0;
-                for (lapis::cell_t x = 0; x < thisNum.ncell(); ++x) {
-                    if (thisNum[x].has_value()) {
-                        num += thisNum[x].value();
-                        den += thisDen[x].value();
-                    }
-                }
-                double osi = num / den * 100;
-
                 try {
-                    auto rx = RxUnit(unitMask, tl, osi);
+                    auto rx = RxUnit(unitMask, tl);
                     if (rx.areaHa > 0.5) {
                         units.push_back(rx);
                         if (overrideTargets) {
@@ -91,14 +77,14 @@ namespace rxtools {
     void Lmu::assignUnitTargets(std::default_random_engine dre, double bbDbh, bool overrideTargets) {
         for (int i = 0; i < units.size(); i++) {
             auto minMax = units[i].getVirtualMinMax(dre, bbDbh);
-            //std::cout << "Min " << minMax.first.ba << " " << minMax.first.tph << " " << minMax.first.mcs << " " << minMax.first.osi << "\n";
-            //std::cout << "Max " << minMax.second.ba << " " << minMax.second.tph << " " << minMax.second.mcs << " " << minMax.second.osi << "\n";
+            //std::cout << "Min " << minMax.first.ba << " " << minMax.first.tph << " " << minMax.first.mcs << "\n";
+            //std::cout << "Max " << minMax.second.ba << " " << minMax.second.tph << " " << minMax.second.mcs << "\n";
 
             std::vector<int> outerIdx;
             double minDist = std::numeric_limits<double>::max();
             int minIdx = 0;
             for(int j = 0; j < structures.size(); ++j) {
-                //std::cout << structures[j].ba << " " << structures[j].tph << " " << structures[j].mcs << " " << structures[j].osi << "\n";
+                //std::cout << structures[j].ba << " " << structures[j].tph << " " << structures[j].mcs << << "\n";
                 //Check for containment
                 if (minMax.first.ba <= structures[j].ba && minMax.second.ba >= structures[j].ba &&
                     minMax.first.tph <= structures[j].tph && minMax.second.tph >= structures[j].tph &&
@@ -111,8 +97,8 @@ namespace rxtools {
                 { //Otherwise calc the distance if there are no contained points yet.
                     double lowerDist = 0;
                     double upperDist = 0;
-                    for (int k = 0; k < 5; ++k) {
-                        if (k == 2 || k == 3) continue; //Skip mcs and osi.
+                    for (int k = 0; k < 4; ++k) {
+                        if (k == 2) continue; come back and fix this?
                         lowerDist += (structures[j][k] - minMax.first[k]) * (structures[j][k] - minMax.first[k]);
                         upperDist += (structures[j][k] - minMax.second[k]) * (structures[j][k] - minMax.second[k]);
                     }
@@ -167,7 +153,7 @@ namespace rxtools {
         std::ofstream out;
         out.open(path + "/structures.csv");
         for (int i = 0; i < structures.size(); ++i) {
-            out << structures[i].ba << "," << structures[i].tph << "," << structures[i].mcs << "," << structures[i].osi;
+            out << structures[i].ba << "," << structures[i].tph << "," << structures[i].mcs;
             for (int j = 0; j < structures[i].csd.size(); ++j) {
                 out << "," << structures[i].binMins[j] << "," << structures[i].csd[j] << "," << structures[i].binMaxs[j];
             }

@@ -112,7 +112,7 @@ namespace rxtools::allometry {
             return plots.size();
         }
 
-        void makePlotTreeMap(const std::vector<std::string> colNames, int nThread = 1);
+        void makePlotTreeMap(const std::vector<std::string> colNames);
         FIATreeList collapsePlotTreeMap();
         FIATreeList collapseByPlotNames(const std::vector<std::string>& names);
         void calcKNNTree();

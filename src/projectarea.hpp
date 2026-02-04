@@ -22,10 +22,6 @@ namespace rxtools {
 
         lapis::Raster<lapis::cell_t> lmuRaster;
         lapis::Raster<lapis::cell_t> lmuIds;
-        lapis::Raster<int> osiDen;
-        lapis::Raster<int> osiNum;
-        lapis::Raster<int> bbOsiDen;
-        lapis::Raster<int> bbOsiNum;
 
         std::unordered_map<lapis::cell_t, lapis::cell_t> regionType;
 
@@ -41,15 +37,9 @@ namespace rxtools {
         void subdivideLmus(std::string climateClassPath, int nThread);
         int getIndex(int n);
         void divideLmusThread(int& sofar, std::mutex& mut, std::unordered_map<lapis::cell_t, int>& regionArea, lapis::Raster<lapis::cell_t>& lmus, lapis::Raster<lapis::cell_t>& newlmus, const int thisThread);
-        void createCoreGapAndReadTaos(int nThread, double bbDbh, TaoGettersMP getters);
 
         Lmu createLmuThread(size_t& sofar, const int thisThread);
-        void coreGapThread(lapis::Raster<int>& osiNum, lapis::Raster<int>& osiDen, lapis::Raster<int>& bbOsiNum, lapis::Raster<int>& bbOsiDen, const int nThread, const int thisThread, std::mutex& mut, size_t& sofar,
-            const lapis::Raster<lapis::cell_t>& maskr, const double canopycutoff, double coregapdist, std::pair<lapis::coord_t, lapis::coord_t> expectedRes,
-            TaoGettersMP getters, double bbDbh);
-        void postGapThread(lapis::Raster<int>& osiNum, lapis::Raster<int>& osiDen, const TaoListMP& taos, const int nThread, const int thisThread, std::mutex& mut, size_t& sofar,
-            const lapis::Raster<lapis::cell_t>& maskr, const double canopycutoff, double coregapdist, std::pair<lapis::coord_t, lapis::coord_t> expectedRes);
-
+        
     };
 }  // namespace rxtools
 

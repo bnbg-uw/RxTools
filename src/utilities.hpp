@@ -21,9 +21,13 @@ namespace rxtools::utilities {
     }
 
     inline std::vector<std::string> readCSVLine(std::istream& file) {
+        auto before = std::chrono::high_resolution_clock::now();
         char split = ',';
         std::string line = std::string();
         std::getline(file, line);
+        auto after = std::chrono::high_resolution_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(after - before);
+        before = after;
         std::istringstream i{ line };
         std::vector<std::string> out{};
         while (!i.eof()) {
@@ -31,6 +35,8 @@ namespace rxtools::utilities {
             std::getline(i, token, split);
             out.push_back(token);
         }
+        after = std::chrono::high_resolution_clock::now();
+        duration = std::chrono::duration_cast<std::chrono::milliseconds>(after - before);
         return out;
     }
 

@@ -28,5 +28,7 @@
 #include "Eigen/Dense"
 #include "Eigen/src/eigenvalues/eigensolver.h"
 
+//Fast csv (self)
+#include "csv.hpp"
 
 #endif
