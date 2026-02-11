@@ -1,7 +1,7 @@
 #include "rxunit.hpp"
 
 namespace rxtools {
-    RxUnit::RxUnit(lapis::Raster<lapis::cell_t> mask, const TaoListMP& tl) : unitMask(mask) {
+    RxUnit::RxUnit(lapis::Raster<lapis::cell_t> mask, const TaoListPt& tl) : unitMask(mask) {
         for (lapis::cell_t i = 0; i < mask.ncell(); ++i) {
             if (unitMask[i].has_value()) {
                 areaHa += unitMask.xres() * unitMask.yres();
@@ -12,7 +12,7 @@ namespace rxtools {
         areaHa *= conv * conv;
         areaHa /= 10000.0;
 
-        taos = TaoListMP(tl, true);
+        taos = TaoListPt(tl, true);
         for (int i = 0; i < tl.size(); i++) {
             if (unitMask.extract(tl.x(i), tl.y(i), lapis::ExtractMethod::near).has_value())
                 taos.taoVector.addFeature(tl.taoVector.getFeature(i));
@@ -40,7 +40,7 @@ namespace rxtools {
                     (lapis::rowcol_t)std::ceil((unitMask.xmax() - unitMask.xmin()) / 3), 3, 3 };
         lapis::lico::GraphLico g{ a };
 
-        auto tnf = lapis::lico::TaoNodeFactory<lapis::VectorDataset<lapis::MultiPolygon>>(
+        auto tnf = lapis::lico::TaoNodeFactory<lapis::VectorDataset<lapis::Point>>(
             taos.getters.predicate,
             taos.getters.xy,
             taos.getters.radius,
@@ -160,7 +160,7 @@ namespace rxtools {
         //chm.writeRaster(path + "/chm.tif");
         //basinMap.writeRaster(path + "/basinmap.tif");
         treatedTaos.writeCsv(path + "/treatedTaos.csv");
-        taos.taoVector.writeShapefile(path + "/treatedTaos.shp");
+        treatedTaos.taoVector.writeShapefile(path + "/treatedTaos.shp");
 
         //treatedChm.writeRaster(path + "/treatedChm.tif");
 
@@ -197,14 +197,14 @@ namespace rxtools {
         out.close();
     }
 
-    RxUnit::RxUnit(std::string path, TaoGettersMP getters) {
+    RxUnit::RxUnit(std::string path, TaoGettersPt getters) {
         //std::cout << "dbhf load\n";
-        taos = TaoListMP(path + "/taos.shp", getters);
+        taos = TaoListPt(path + "/taos.shp", getters);
        // std::cout << "taos load\n";
         unitMask = lapis::Raster<lapis::cell_t>(path + "/unitMask.tif");
         //chm = spatial::Raster<double>(path + "/chm.tif");
         //unitMask = spatial::Raster<int>(path + "/basinmap.tif");
-        treatedTaos = TaoListMP(path + "/treatedTaos.shp", getters);
+        treatedTaos = TaoListPt(path + "/treatedTaos.shp", getters);
         //treatedChm = spatial::Raster<double>(path + "/treatedChm.tif");
 
         //std::cout << "metaddata\n";

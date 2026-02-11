@@ -63,7 +63,7 @@ namespace rxtools {
         //Treatment is "successful" if treatment is achieved without having to add any extra trees back in or being unsuccessful due to diameter limit.
         //"diameterFailure" is if the treatment was unable to be undertaken because trees > diameter limit had more than the target BA.
         //"cuttingFailure" means that too many trees were cut and some had to be added back in due to residual BA being below target BA.
-        std::tuple<TaoListMP, TaoListMP, treatmentResult> doTreatment(RxUnit rx, double dbhMin, double dbhMax, lapis::coord_t maxCrown, bool intermediates = false, std::string intermediatespath = "E:/treatedcsvs/");
+        std::tuple<TaoListPt, TaoListPt, treatmentResult> doTreatment(RxUnit rx, double dbhMin, double dbhMax, lapis::coord_t maxCrown, bool intermediates = false, std::string intermediatespath = "E:/treatedcsvs/");
 
     private:
         // If a tree is within the limiting distance from a BB tree, then retaining that tree obligates you to retain the BB tree as well
@@ -76,7 +76,7 @@ namespace rxtools {
         // focalIdx is the idx of the focal tree in the total dataset
         // keepSet is an unordered set of the idx of the keep/obligate Trees in the total dataset.
         // What you get back is an undordered set of idx corresponding to keep trees in your clump that corresponds to idx in the total taolist.
-        void obligateIdx(TaoListMP& tl, std::vector<treatmentDecision>& treeStatus, std::vector<size_t>& treeIdx, size_t& focalIdx, std::unordered_set<size_t>& keepSet);
+        void obligateIdx(TaoListPt& tl, std::vector<treatmentDecision>& treeStatus, std::vector<size_t>& treeIdx, size_t& focalIdx, std::unordered_set<size_t>& keepSet);
 
     };
     namespace weightedRandom {

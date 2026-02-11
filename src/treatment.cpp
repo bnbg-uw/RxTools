@@ -3,7 +3,7 @@
 namespace rxtools {
     using ns = lapis::lico::NodeStatus;
 
-    void Treatment::obligateIdx(TaoListMP& tl, std::vector<treatmentDecision>& treeStatus, std::vector<size_t>& treeIdx, size_t& focalIdx, std::unordered_set<size_t>& keepSet) {
+    void Treatment::obligateIdx(TaoListPt& tl, std::vector<treatmentDecision>& treeStatus, std::vector<size_t>& treeIdx, size_t& focalIdx, std::unordered_set<size_t>& keepSet) {
         std::vector<size_t> testIdx; //These are idx in the total dataset to test as focals.
         
         //Get all the trees that are not already known as keeps, but are obligate retzins and clump with the focal tree
@@ -22,7 +22,7 @@ namespace rxtools {
         // Since we pass keepSet by reference, it will be updated with the new taos as we go.
     }
 
-    std::tuple<TaoListMP, TaoListMP, treatmentResult> Treatment::doTreatment(RxUnit rx, double dbhMin, double dbhMax, lapis::coord_t maxCrown, bool intermediates, std::string intermediatespath) {
+    std::tuple<TaoListPt, TaoListPt, treatmentResult> Treatment::doTreatment(RxUnit rx, double dbhMin, double dbhMax, lapis::coord_t maxCrown, bool intermediates, std::string intermediatespath) {
         auto binMins = rx.targetStructure.binMins;
         auto binMaxs = rx.targetStructure.binMaxs;
 
@@ -42,7 +42,7 @@ namespace rxtools {
         std::vector<size_t> taocrosswalk;
 
         //populate the graph and set up the crosswalk.
-        auto tnf = lapis::lico::TaoNodeFactory<lapis::VectorDataset<lapis::MultiPolygon>>(
+        auto tnf = lapis::lico::TaoNodeFactory<lapis::VectorDataset<lapis::Point>>(
             rx.taos.getters.predicate,
             rx.taos.getters.xy,
             rx.taos.getters.radius,
@@ -243,7 +243,7 @@ namespace rxtools {
                 }
             }
             if (intermediates) {
-                TaoListMP out;
+                TaoListPt out;
                 for (size_t i = 0; i < g.nodes.size(); ++i) {
                     if (g.nodes[i].status == ns::on) {
                         out.taoVector.addFeature(rx.taos(taocrosswalk[i]));
@@ -265,8 +265,8 @@ namespace rxtools {
         if (intermediates) targetstream.close();
 
         //Convert it all to a TaoList
-        TaoListMP keep{ rx.taos, true };
-        TaoListMP cut{ rx.taos, true };
+        TaoListPt keep{ rx.taos, true };
+        TaoListPt cut{ rx.taos, true };
         for (size_t i = 0; i < g.nodes.size(); ++i) {
             if (g.nodes[i].status == ns::on) {
                 keep.taoVector.addFeature(rx.taos(taocrosswalk[i]));

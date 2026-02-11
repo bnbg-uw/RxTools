@@ -6,7 +6,7 @@ namespace rxtools {
 
         projectPoly = lapis::VectorDataset<lapis::MultiPolygon>(projectPolygonPath);
         if (!projectPoly.crs().isConsistent(lidarDataset->crs()))
-            projectPoly.projectInPlacePreciseExtent(lidarDataset->crs());
+            projectPoly.projectInPlace(lidarDataset->crs());
 
         auto mask = lapis::Raster<int>(processedfolder::stringOrThrow(lidarDataset->maskRaster()));
         mask = lapis::cropRaster(mask, projectPoly.extent(), lapis::SnapType::out);
@@ -22,7 +22,8 @@ namespace rxtools {
             lmuRaster = createLmuRasterFromTpiAndAsp(lidarDataset, lmuParam, projectPoly);
             lmuIds = lapis::connectedComponents(lmuRaster, false);
             std::cout << "\t\tLMU creation done!\n";
-            //lmuRaster.writeRaster("E:/yubalmus.tif");
+            lmuRaster.writeRaster("G:/inyolmus.tif");
+            lmuIds.writeRaster("G:/inyoids.tif");
         }
         else {
             // check extents etc...
@@ -94,7 +95,7 @@ namespace rxtools {
         // create ridge groups
         auto tpi = lapis::Raster<double>(processedfolder::stringOrThrow(lds->tpi(tpiDist, lapis::linearUnitPresets::meter)));
         if (lds->type() == processedfolder::RunType::fusion) {
-            tpi = tpi / 100; //technically needs to be converted to metric if elevation is in feet, but thats a you problem later...
+            tpi = tpi / 100; //technically, tpi needs to be converted to metric if elevation is in feet, but thats a you problem later...
         }
         if (projectPoly.nFeature()) {
             tpi = lapis::cropRaster(tpi, projectPoly.extent(), lapis::SnapType::out);
@@ -108,6 +109,8 @@ namespace rxtools {
         }
         aspect.mask(tpi);
         tpi.mask(aspect);
+        tpi.writeRaster("G:/tpiconv.tif");
+        aspect.writeRaster("G:/asp.tif");
 
         auto ridge = tpi > ridgeSep;
         for (lapis::cell_t c = 0; c < ridge.ncell(); ++c) {
@@ -131,13 +134,14 @@ namespace rxtools {
                 ridgeGroup[c].has_value() = false;
             }
         }
+        ridgeGroup.writeRaster("G:/ridge.tif");
         std::cout << "\t\t\tRidges identified.\n";
 
         //create canyon groups
         auto canyon = tpi < -canyonSep;
         for (lapis::cell_t c = 0; c < canyon.ncell(); ++c) {
-            if (!ridge[c].value()) {
-                ridge[c].has_value() = false;
+            if (!canyon[c].value()) {
+                canyon[c].has_value() = false;
             }
         }
         auto canyonGroup = lapis::connectedComponents(canyon, false);
@@ -145,7 +149,7 @@ namespace rxtools {
         cellArea = canyon.xres() * canyon.yres();
         nCellArea = (int)(canyonArea / cellArea);
         regionArea.clear();
-        for (auto c = 0; c < canyonGroup.ncell(); ++c) {
+        for (lapis::cell_t c = 0; c < canyonGroup.ncell(); ++c) {
             if (canyonGroup[c].has_value()) {
                 regionArea.emplace(canyonGroup[c].value(), 0);
                 ++regionArea[canyonGroup[c].value()];
@@ -156,6 +160,7 @@ namespace rxtools {
                 canyonGroup[c].has_value() = false;
             }
         }
+        canyonGroup.writeRaster("G:/canyon.tif");
         std::cout << "\t\t\tValley bottoms identified.\n";
 
 
@@ -176,6 +181,7 @@ namespace rxtools {
             }
             spos[i].has_value() = true;
         }
+        spos.writeRaster("G:/spos.tif");
         std::cout << "\t\t\tSlope position identified.\n";
 
         // Code aspect, ready to be put into output lmu raster.
@@ -192,6 +198,7 @@ namespace rxtools {
                 }
             }
         }
+        aspectClassified.writeRaster("G:/aspclass.tif");
         std::cout << "\t\t\tAspect identified.\n";
 
 
@@ -212,6 +219,7 @@ namespace rxtools {
                 }
             }
         }
+        lmu.writeRaster("G:/lmu1.tif");
         std::cout << "\t\t\tFirst pass LMU's identified. Beginning post-processing.\n";
 
         ///------------------
@@ -239,7 +247,7 @@ namespace rxtools {
         //a = pi*r^2, I'm not dividing by pi to leave buffer.
         auto lmuNibble = lapis::nibble(lmu, lmuGrp);
         std::cout << "\t\t\tNibbling done.\n";
-
+        lmuNibble.writeRaster("G:/lmuFinal.tif");
         return lmuNibble;
     }
 

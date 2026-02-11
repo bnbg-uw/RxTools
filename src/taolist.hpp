@@ -88,5 +88,8 @@ namespace rxtools {
 
     using TaoListMP = TaoList<lapis::VectorDataset<lapis::MultiPolygon>>;
     using TaoGettersMP = TaoGetters<lapis::VectorDataset<lapis::MultiPolygon>>;
+    
+    using TaoListPt = TaoList<lapis::VectorDataset<lapis::Point>>;
+    using TaoGettersPt = TaoGetters<lapis::VectorDataset<lapis::Point>>;
 } // namespace rxtools
 #endif //rxtools_taolist_h

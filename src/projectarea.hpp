@@ -12,7 +12,7 @@ namespace rxtools {
     class ProjectArea {
     public:
         std::unique_ptr<processedfolder::ProcessedFolder> lidarDataset;
-        TaoListMP allTaos{};
+        TaoListPt allTaos{};
         bool allTaosInit = false;
         lapis::VectorDataset<lapis::MultiPolygon> projectPoly;
 

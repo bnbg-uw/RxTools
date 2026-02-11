@@ -44,7 +44,7 @@ namespace rxtools {
                 throw std::invalid_argument("csd, binmins, and binmaxs should all have equal size.");
         };
 
-        StructureSummary(const TaoListMP& taos, const lapis::Alignment& unitAlign, double areaHa) {
+        StructureSummary(const TaoListPt& taos, const lapis::Alignment& unitAlign, double areaHa) {
             lapis::lico::GraphLico g{ unitAlign };
             g.addDataset(taos.taoVector, taos.nodeFactory, lapis::lico::NodeStatus::on);
 

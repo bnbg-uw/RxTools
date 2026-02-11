@@ -3,7 +3,7 @@
 
 namespace rxtools {
 
-    Lmu::Lmu(std::string path, TaoGettersMP getters) {
+    Lmu::Lmu(std::string path, TaoGettersPt getters) {
         try {
             mask = lapis::Raster<lapis::cell_t>(path + "ridgeTop.tif");
             type = LmuType::ridgeTop;
@@ -32,7 +32,7 @@ namespace rxtools {
         }
     }
 
-    void Lmu::makeUnits(const lapis::VectorDataset<lapis::MultiPolygon>& unitsPoly, const TaoListMP& tl, const bool& overrideTargets) {
+    void Lmu::makeUnits(const lapis::VectorDataset<lapis::MultiPolygon>& unitsPoly, const TaoListPt& tl, const bool& overrideTargets) {
         if (units.size()) {
             throw std::runtime_error("Units have already been calculated");
         }
@@ -98,7 +98,7 @@ namespace rxtools {
                     double lowerDist = 0;
                     double upperDist = 0;
                     for (int k = 0; k < 4; ++k) {
-                        if (k == 2) continue; come back and fix this?
+                        if (k == 2) continue; //skipping mcs since we use csd below.
                         lowerDist += (structures[j][k] - minMax.first[k]) * (structures[j][k] - minMax.first[k]);
                         upperDist += (structures[j][k] - minMax.second[k]) * (structures[j][k] - minMax.second[k]);
                     }
