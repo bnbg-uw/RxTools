@@ -93,7 +93,10 @@ SOFTWARE.
 #define MIO_PAGE_HEADER
 
 #ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
 # include <windows.h>
+#undef near
 #else
 # include <unistd.h>
 #endif
