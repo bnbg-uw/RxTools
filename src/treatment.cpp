@@ -22,7 +22,10 @@ namespace rxtools {
         // Since we pass keepSet by reference, it will be updated with the new taos as we go.
     }
 
-    std::tuple<TaoListPt, TaoListPt, treatmentResult> Treatment::doTreatment(RxUnit rx, double dbhMin, double dbhMax, lapis::coord_t maxCrown, bool intermediates, std::string intermediatespath) {
+    std::tuple<TaoListPt, TaoListPt, treatmentResult> Treatment::doTreatment(
+        RxUnit rx, double dbhMin, double dbhMax, lapis::coord_t maxCrown,
+        bool intermediates, std::string intermediatespath) 
+    {
         auto binMins = rx.targetStructure.binMins;
         auto binMaxs = rx.targetStructure.binMaxs;
 

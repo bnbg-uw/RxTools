@@ -11,7 +11,7 @@ namespace rxtools::allometry {
     class UnivariateLinearModel : public Model {
     public:
         enum class Transform {
-            //Transform::None is relied upon to be ethe first element for looping purposes.
+            //Transform::None is relied upon to be the first element for looping purposes.
             None, //The response should not be transformed
 
             //Add new transforms here:
