@@ -6,48 +6,85 @@
 #include "allometry.hpp"
 
 namespace rxtools::allometry {
+    namespace transforms {
+        const UnivariateLinearModel::Transform none;
+        const UnivariateLinearModel::Transform square; //The response should be squared
+        const UnivariateLinearModel::Transform cube; //The response should be cubed
+        const UnivariateLinearModel::Transform power; //A log-log transform should be applied
+
+        const UnivariateLinearModel::Transform sqrt; //The response should be square-rooted
+        const UnivariateLinearModel::Transform curt; //The response should be cube-rooted
+        const UnivariateLinearModel::Transform log; //The response should be log-transformed
+    }
 
     // This model will create a linear model (perhaps with transform) from height to the specified response variable.
     class UnivariateLinearModel : public Model {
     public:
-        enum class Transform {
-            //Transform::None is relied upon to be the first element for looping purposes.
-            None, //The response should not be transformed
-
-            //Add new transforms here:
-            Square, //The response should be squared
-            Cube, //The response should be cubed
-            Power, //A log-log transform should be applied
-
-            //Transform::Suggest is relied upon to be the last element for looping purposes.
-            Suggest //All of the above should be tried, and the model with the highest R^2 should be used
+        struct Transform {
+            std::string name;
+            std::function<double(double)> applyX;
+            std::function<double(double)> applyY;
+            std::function<double(double)> inverseY;
         };
 
         struct Parameters {
             double slope;
             double intercept;
-            Transform transform;
             double rsq;
-            Parameters() : slope(0), intercept(0), transform(Transform::None), rsq(0) {}
+            Transform transform;
+            Parameters() : slope(0), intercept(0), rsq(0), transform(transforms::none) {}
             Parameters(const double& s, const double& i, const Transform& t, const double& r) :
-                slope(s), intercept(i), transform(t), rsq(r) {}
+                slope(s), intercept(i), rsq(r), transform(t) {}
         };
 
         Parameters parameters;
-
-        UnivariateLinearModel() {};
-        UnivariateLinearModel(const double& slope, const double& intercept, const Transform& transform, const double& rsq,
-            const lapis::LinearUnit& inputUnit, const lapis::LinearUnit& outputUnit);
-        UnivariateLinearModel(const FIATreeList& treeList, const std::string& responseName, const lapis::LinearUnit& responseUnit, const Transform& transform = Transform::Suggest);
-
-        double predict(double x, const lapis::LinearUnit& thisUnit, const lapis::LinearUnit& returnUnit = lapis::linearUnitPresets::meter) const;
+        double predict(double x, const lapis::LinearUnit& thisUnit, const lapis::LinearUnit& returnUnit) const;
 
 
     protected:
-        void print(std::ostream& os) const;
-    private:
-        Parameters calcModel(const std::vector<double>& y, const std::vector<double>& x, const Transform& tr) const;
+        virtual std::vector<Transform> candidateTransforms() const = 0;
+        void fitBestFromCandidateTransforms(const std::vector<double>& y, const std::vector<double>& x);
+        Parameters calcModel(std::vector<double> y, std::vector<double> x, const Transform& tr) const;
+        virtual void print(std::ostream& os) const;
+
     };
+
+    class DbhModel : public UnivariateLinearModel {
+    public:
+        DbhModel() {};
+        DbhModel(const double& slope, const double& intercept, const Transform& transform, const double& rsq,
+            const lapis::LinearUnit& heightUnit, const lapis::LinearUnit& diameterUnit);
+        DbhModel(const std::vector<double>& heights, const std::vector<double>& diameters,
+            const lapis::LinearUnit& heightUnit, const lapis::LinearUnit& diameterUnit,
+            std::optional<Transform> transform = std::nullopt);
+    protected:
+        std::vector<Transform> candidateTransforms() const override;
+    };
+
+    class CrownModel : public UnivariateLinearModel {
+    public:
+        CrownModel() {};
+        CrownModel(const double& slope, const double& intercept, const Transform& transform, const double& rsq,
+            const lapis::LinearUnit& heightUnit, const lapis::LinearUnit& crownUnit);
+        CrownModel(const std::vector<double>& heights, const std::vector<double>& crowns,
+            const lapis::LinearUnit& heightUnit, const lapis::LinearUnit& crownUnit,
+            std::optional<Transform> transform = std::nullopt);
+    protected:
+        std::vector<Transform> candidateTransforms() const override;
+    };
+
+    class BiomassModel : public UnivariateLinearModel {
+    public:
+        BiomassModel() {};
+        BiomassModel(const double& slope, const double& intercept, const Transform& transform, const double& rsq,
+            const lapis::LinearUnit& heightUnit, const lapis::LinearUnit& biomassUnit);
+        BiomassModel(const std::vector<double>& heights, const std::vector<double>& biomasses,
+            const lapis::LinearUnit& heightUnit, const lapis::LinearUnit& biomassUnit,
+            std::optional<Transform> transform = std::nullopt);
+    protected:
+        std::vector<Transform> candidateTransforms() const override;
+    };
+
 
     struct FastFuels {
     public:
@@ -67,7 +104,7 @@ namespace rxtools::allometry {
     private:
         std::vector<int> spcdWeights;
         std::hash<double> spcdHash;
-        UnivariateLinearModel cr;
+        CrownModel cr;
     };
 
 } // namespace rxtools::allometry

@@ -22,8 +22,8 @@ namespace rxtools {
             lmuRaster = createLmuRasterFromTpiAndAsp(lidarDataset, lmuParam, projectPoly);
             lmuIds = lapis::connectedComponents(lmuRaster, false);
             std::cout << "\t\tLMU creation done!\n";
-            lmuRaster.writeRaster("G:/inyolmus.tif");
-            lmuIds.writeRaster("G:/inyoids.tif");
+            lmuRaster.writeRaster("G:/inyolmus.tif", "GTiff", std::numeric_limits<lapis::cell_t>::lowest(), GDT_UInt32);
+            lmuIds.writeRaster("G:/inyoids.tif", "GTiff", std::numeric_limits<lapis::cell_t>::lowest(), GDT_UInt32);
         }
         else {
             // check extents etc...
@@ -134,7 +134,7 @@ namespace rxtools {
                 ridgeGroup[c].has_value() = false;
             }
         }
-        ridgeGroup.writeRaster("G:/ridge.tif");
+        ridgeGroup.writeRaster("G:/ridge.tif", "GTiff", std::numeric_limits<lapis::cell_t>::lowest(), GDT_UInt32);
         std::cout << "\t\t\tRidges identified.\n";
 
         //create canyon groups
@@ -160,7 +160,7 @@ namespace rxtools {
                 canyonGroup[c].has_value() = false;
             }
         }
-        canyonGroup.writeRaster("G:/canyon.tif");
+        canyonGroup.writeRaster("G:/canyon.tif", "GTiff", std::numeric_limits<lapis::cell_t>::lowest(), GDT_UInt32);
         std::cout << "\t\t\tValley bottoms identified.\n";
 
 
@@ -219,7 +219,7 @@ namespace rxtools {
                 }
             }
         }
-        lmu.writeRaster("G:/lmu1.tif");
+        lmu.writeRaster("G:/lmu1.tif", "GTiff", std::numeric_limits<lapis::cell_t>::lowest(), GDT_UInt32);
         std::cout << "\t\t\tFirst pass LMU's identified. Beginning post-processing.\n";
 
         ///------------------
@@ -247,7 +247,7 @@ namespace rxtools {
         //a = pi*r^2, I'm not dividing by pi to leave buffer.
         auto lmuNibble = lapis::nibble(lmu, lmuGrp);
         std::cout << "\t\t\tNibbling done.\n";
-        lmuNibble.writeRaster("G:/lmuFinal.tif");
+        lmuNibble.writeRaster("G:/lmuFinal.tif", "GTiff", std::numeric_limits<lapis::cell_t>::lowest(), GDT_UInt32);
         return lmuNibble;
     }
 
@@ -280,9 +280,9 @@ namespace rxtools {
         }
         std::cout << "threading done\n";
         regionType.clear();
-        for (lapis::cell_t c = 0; c < lmuIds.ncell(); ++c) {
-            if (lmuIds[c].has_value()) {
-                regionType.emplace(lmuIds[c].value(), lmuRaster[c].value());
+        for (lapis::cell_t c = 0; c < newlmus.ncell(); ++c) {
+            if (newlmus[c].has_value()) {
+                regionType.emplace(newlmus[c].value(), lmuRaster[c].value());
             }
         }
         auto nCellArea = 300; // canyon area cutoff ~10acres, which is our lmu cutoff.
@@ -299,7 +299,7 @@ namespace rxtools {
                 mask[c].has_value() = false;
             }
         }
-        auto lmuNibble = lapis::nibble(lmuIds, mask);
+        auto lmuNibble = lapis::nibble(newlmus, mask);
         lmuIds = lmuNibble;
     }
 
@@ -344,9 +344,10 @@ namespace rxtools {
                 }
             }
             else {
+                auto idx = getIndex(1);
                 for (lapis::cell_t c = 0; c < newlmus.ncell(); ++c) {
-                    if (newlmus[c].value() == id) {
-                        newlmus[c].value() = getIndex(1);
+                    if (newlmus[c].has_value() && newlmus[c].value() == id) {
+                        newlmus[c].value() = idx;
                     }
                 }
             }

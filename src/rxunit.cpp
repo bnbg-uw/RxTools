@@ -156,7 +156,7 @@ namespace rxtools {
     void RxUnit::write(std::string path, allometry::FastFuels ffa) {
         taos.writeCsv(path + "/taos.csv");
         taos.taoVector.writeShapefile(path + "/taos.shp");
-        unitMask.writeRaster(path + "/unitMask.tif");
+        unitMask.writeRaster(path + "/unitMask.tif", "GTiff", std::numeric_limits<lapis::cell_t>::lowest(), GDT_UInt32);
         //chm.writeRaster(path + "/chm.tif");
         //basinMap.writeRaster(path + "/basinmap.tif");
         treatedTaos.writeCsv(path + "/treatedTaos.csv");

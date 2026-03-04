@@ -148,7 +148,7 @@ namespace rxtools {
             t = "swFacing";
         else
             t = "nwFacing";
-        mask.writeRaster(path + "/" + t + ".tif");
+        mask.writeRaster(path + "/" + t + ".tif", "GTiff", std::numeric_limits<lapis::cell_t>::lowest(), GDT_UInt32);
         
         std::ofstream out;
         out.open(path + "/structures.csv");

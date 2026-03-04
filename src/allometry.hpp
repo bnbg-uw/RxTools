@@ -134,31 +134,23 @@ namespace rxtools::allometry {
     
     using AllometryRaster = lapis::Raster < std::shared_ptr<Model>>;
 
-    template<class T>
+    template<class T, class MODEL>
     AllometryRaster calculateAllometryOverProjectArea(lapis::Raster<T> r, FIAReader fia) {
-        /*using Point = bg::model::point<lapis::coord_t, 2, bg::cs::cartesian>;
-        using Value = std::pair<Point, std::string>;
-
-        rtree already exists at this point!
-        handle projection either in R or in FIA.;
-        bgi::rtree<Value, bgi::quadratic<16>> rtree;
-        for (const auto& [name, coord] : fia.plots) {
-            Point p(coord.x(), coord.y());
-            rtree.insert(std::make_pair(p, name));
-        }
-
         int id = 0;
-        std::vector<std::pair<std::unordered_set<Value>, int>> knnToId;
-        std::unordered_map<int, std::unordered_set<Value>> idToKnn;
+        std::vector<std::pair<std::unordered_set<FIAReader::PlotPointName>, int>> knnToId;
+        std::unordered_map<int, std::unordered_set<FIAReader::PlotPointName>> idToKnn;
         std::unordered_map<int, std::vector<lapis::cell_t>> idToCells;
 
+        AllometryRaster out(r);
+
+        std::cout << "Calculating KNN for each cell..." << std::endl;
         for (lapis::cell_t c = 0; c < r.ncell(); ++c) {
             if (r[c].has_value()) {
-                Point query_point(r.xFromCell(c), r.yFromCell());
+                FIAReader::PlotPoint query_point(r.xFromCell(c), r.yFromCell());
 
-                Need a better way to pick k.;
-                std::unordered_set<Value> results;
-                rtree.query(bgi::nearest(query_point, 5), std::back_inserter(results));
+                //Need a better way to pick k.;
+                std::unordered_set<FIAReader::PlotPointName> results;
+                fia.tree.query(bgi::nearest(query_point, 15), std::back_inserter(results));
                 
                 int foundId = -1;
                 for (const auto& p : knnToId) {
@@ -171,17 +163,34 @@ namespace rxtools::allometry {
                 }
                 else {
                     knnToId.push_back(std::make_pair(results, id));
-                    idToKnn[id] = results;
-                    idToCells[id].push_back(c);
+                    idToKnn.at(id) = results;
+                    idToCells.at(id).push_back(c);
                     id++;
                 }
             }
         }
 
+        std::cout << "Calculating allometry for each unique KNN..." << std::endl;
         for (const auto& p : idToKnn) {
-
+            FIATreeList treeList;
+            for(const auto& ppv : p.second) {
+                auto thisTrees = fia.plotTreeMap.at(ppv.second);
+                if (!treeList.names.size()) {
+                    treeList.names = thisTrees.names;
+                }
+                auto newSize = treeList.height.size() + thisTrees.height.size();
+                treeList.height.reserve(newSize);
+                treeList.otherfields.reserve(newSize);
+                treeList.height.insert(treeList.height.end(), thisTrees.height.begin(), thisTrees.height.end());
+                treeList.otherfields.insert(treeList.otherfields.end(), thisTrees.otherfields.begin(), thisTrees.otherfields.end());
+            }
+            std::shared_ptr<MODEL> mPtr = std::make_shared<MODEL>(treeList, responseName, responseUnit);
+            for (const auto& cell : idToCells.at(p.first)) {
+                out[cell].value() = mPtr;
+                out[cell].has_value() = true;
+            }
         }
-        throw std::runtime_error("Not implemented yet");*/
+        return(out);
     }
 } // namespace rxtools::allometry
 

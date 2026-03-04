@@ -124,8 +124,8 @@ namespace rxtools {
             cmdLine << commandLine;
             cmdLine.close();
 
-            lmus.writeRaster((p / "lmus.tif").string());
-            lmuIds.writeRaster((p / "lmuIds.tif").string());
+            lmus.writeRaster((p / "lmus.tif").string(), "GTiff", std::numeric_limits<lapis::cell_t>::lowest(), GDT_UInt32);
+            lmuIds.writeRaster((p / "lmuIds.tif").string(), "GTiff", std::numeric_limits<lapis::cell_t>::lowest(), GDT_UInt32);
 
             for (int i = 0; i < names.size(); ++i) {
                 if (i == 0 || i == 1) {
