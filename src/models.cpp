@@ -1,90 +1,13 @@
 #include "models.hpp"
 
 namespace rxtools::allometry {
-    namespace transforms{
-        const UnivariateLinearModel::Transform none{
-            "None",
-            [](double x) { return x; },
-            [](double y) { return y; },
-            [](double y) { return y; }
-        };
-        const UnivariateLinearModel::Transform square{
-            "Square",
-            [](double x) { return x; },
-            [](double y) { return y * y; },
-            [](double y) { return std::sqrt(y); }
-        };
-        const UnivariateLinearModel::Transform cube{ 
-            "Cube",
-            [](double x) { return x; },
-            [](double y) { return y * y * y; },
-            [](double y) { return std::cbrt(y); }
-        };
-        const UnivariateLinearModel::Transform power{
-            "Power (log-log)",
-            [](double x) { return std::log(x); },
-            [](double y) { return std::log(y); },
-            [](double y) { return std::exp(y); }
-        };
-        const UnivariateLinearModel::Transform sqrt{
-            "Square-root",
-            [](double x) { return x; },
-            [](double y) { return std::sqrt(y); },
-            [](double y) { return y * y; }
-        };
-        const UnivariateLinearModel::Transform curt{
-            "Cube-root",
-            [](double x) { return x; },
-            [](double y) { return std::cbrt(y); },
-            [](double y) { return y * y * y; } 
-        };
-        const UnivariateLinearModel::Transform log{
-            "Log",
-            [](double x) { return x; },
-            [](double y) { return std::log(y); },
-            [](double y) { return std::exp(y); }
-        };
-    }
-
-    /*DbhModel::UnivariateLinearModel(const FIATreeList& treeList, const std::string& responseName,
-        const lapis::LinearUnit& responseUnit, const Transform& transform) {
-        inputUnit = lapis::linearUnitPresets::internationalFoot;
-        outputUnit = responseUnit;
-
-        auto it = std::find(treeList.names.begin(), treeList.names.end(), responseName);
-        ptrdiff_t responseIdx;
-
-        if (it == treeList.names.end()) {
-            throw(std::out_of_range("responseName is not in names of treeList"));
-        }
-        else {
-            responseIdx = std::distance(treeList.names.begin(), it);
-        }
-
-        std::vector<double> response;
-        for (size_t i = 0; i < treeList.otherfields.size(); ++i) {
-            response.push_back(treeList.otherfields.at(i).at(responseIdx));
-        }
-
-        if (transform != Transform::Suggest) {
-            parameters = calcModel(response, treeList.height, transform);
-        }
-        else {
-            for (int t = static_cast<int>(Transform::None); t != static_cast<int>(Transform::Suggest); ++t) {
-                auto p = calcModel(response, treeList.height, static_cast<Transform>(t));
-                if (p.rsq > parameters.rsq) {
-                    parameters = p;
-                }
-            }
-        }
-    }*/
-
+    
     //----------------------------
     // Univariate Linear Model
     //----------------------------
-    double UnivariateLinearModel::predict(double x, const lapis::LinearUnit& thisUnit, const lapis::LinearUnit& returnUnit) const {
-        auto inConverter = lapis::LinearUnitConverter(thisUnit, inputUnit);
-        auto outConverter = lapis::LinearUnitConverter(outputUnit, returnUnit);
+    double UnivariateLinearModel::predict(double x, const lapis::Unit& thisUnit, const lapis::Unit& returnUnit) const {
+        auto inConverter = lapis::UnitConverter(thisUnit, inputUnit);
+        auto outConverter = lapis::UnitConverter(outputUnit, returnUnit);
         
         x = inConverter(x);
         x = parameters.transform.applyX(x);
@@ -159,14 +82,14 @@ namespace rxtools::allometry {
     //     DbhModel
     //--------------------
     DbhModel::DbhModel(const double& slope, const double& intercept, const Transform& transform, const double& rsq,
-        const lapis::LinearUnit& heightUnit, const lapis::LinearUnit& diameterUnit) {
+        const lapis::Unit& heightUnit, const lapis::Unit& diameterUnit) {
         parameters = Parameters(slope, intercept, transform, rsq);
         this->inputUnit = heightUnit;
         this->outputUnit = diameterUnit;
     }
 
     DbhModel::DbhModel(const std::vector<double>& heights, const std::vector<double>& diameters,
-        const lapis::LinearUnit& heightUnit, const lapis::LinearUnit& diameterUnit,
+        const lapis::Unit& heightUnit, const lapis::Unit& diameterUnit,
         std::optional<Transform> transform)
     {
         this->inputUnit = heightUnit;
@@ -187,14 +110,14 @@ namespace rxtools::allometry {
     //     CrownModel
     //--------------------
     CrownModel::CrownModel(const double& slope, const double& intercept, const Transform& transform, const double& rsq,
-        const lapis::LinearUnit& heightUnit, const lapis::LinearUnit& crownUnit) {
+        const lapis::Unit& heightUnit, const lapis::Unit& crownUnit) {
         parameters = Parameters(slope, intercept, transform, rsq);
         this->inputUnit = heightUnit;
         this->outputUnit = crownUnit;
     }
 
     CrownModel::CrownModel(const std::vector<double>& heights, const std::vector<double>& crowns,
-        const lapis::LinearUnit& heightUnit, const lapis::LinearUnit& crownUnit,
+        const lapis::Unit& heightUnit, const lapis::Unit& crownUnit,
         std::optional<Transform> transform)
     {
         this->inputUnit = heightUnit;
@@ -215,14 +138,14 @@ namespace rxtools::allometry {
     //     BiomassModel
     //--------------------
     BiomassModel::BiomassModel(const double& slope, const double& intercept, const Transform& transform, const double& rsq,
-        const lapis::LinearUnit& heightUnit, const lapis::LinearUnit& biomassUnit) {
+        const lapis::Unit& heightUnit, const lapis::Unit& biomassUnit) {
         parameters = Parameters(slope, intercept, transform, rsq);
         this->inputUnit = heightUnit;
         this->outputUnit = biomassUnit;
     }
 
     BiomassModel::BiomassModel(const std::vector<double>& heights, const std::vector<double>& biomasses,
-        const lapis::LinearUnit& heightUnit, const lapis::LinearUnit& biomassUnit,
+        const lapis::Unit& heightUnit, const lapis::Unit& biomassUnit,
         std::optional<Transform> transform)
     {
         this->inputUnit = heightUnit;

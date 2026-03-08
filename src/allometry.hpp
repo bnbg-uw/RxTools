@@ -7,11 +7,6 @@
 #include "utilities.hpp"
 #include "Raster.hpp"
 
-namespace rxtools::linearUnitPresets {
-    const lapis::LinearUnit inch{ "inch",0.0254 };
-    const lapis::LinearUnit centimeter{ "centimeter",0.01 };
-}
-
 namespace rxtools::allometry {
     namespace bg = boost::geometry;
     namespace bgi = boost::geometry::index;
@@ -22,6 +17,29 @@ namespace rxtools::allometry {
     //      this would optimize calcKNNTree at the cost of potentially having duplicates in the plotlist.
     //      also plotTreeMap could use the pair as the key? fewer objects at the cost of complexity.
     using PlotList = std::unordered_map<std::string, lapis::CoordXY>;
+
+    //abstract base class for various types allometric models we can run.
+    class Model {
+    public:
+        lapis::Unit inputUnit = lapis::linearUnitPresets::unknownLinear; //units the model expects as input
+        lapis::Unit outputUnit = lapis::linearUnitPresets::unknownLinear; //units the model expects as output
+
+        virtual double predict(double x, const lapis::Unit& thisUnit, const lapis::Unit& returnUnit) const = 0;
+        std::vector<double> predict(const std::vector<double>& x, const lapis::Unit& thisUnit, const lapis::Unit& returnUnit);
+
+        virtual ~Model() = default;
+
+        friend std::ostream& operator<<(std::ostream& os, const Model& m);
+
+    protected:
+        //override to make cout behavior work- pipe the output you'd like into os.
+        virtual void print(std::ostream& os) const = 0;
+    };
+
+    inline std::ostream& operator<<(std::ostream& os, const Model& m) {
+        m.print(os);
+        return(os);
+    }
 
     //Allows for more than one explanatory variable
     struct FIATreeList {
@@ -48,30 +66,22 @@ namespace rxtools::allometry {
             }
             out.close();
         }
+
+        std::vector<double> get(const std::string& name) const {
+            auto it = std::find(names.begin(), names.end(), name);
+            if (it == names.end()) {
+                throw(std::out_of_range("name is not in names of treeList"));
+            }
+            else {
+                ptrdiff_t idx = std::distance(names.begin(), it);
+                std::vector<double> out;
+                for (size_t i = 0; i < otherfields.size(); ++i) {
+                    out.push_back(otherfields.at(i).at(idx));
+                }
+                return out;
+            }
+        }
     };
-
-    //abstract base class for various types allometric models we can run.
-    class Model {
-    public:
-        lapis::LinearUnit inputUnit = lapis::linearUnitPresets::unknownLinear; //units the model expects as input
-        lapis::LinearUnit outputUnit = lapis::linearUnitPresets::unknownLinear; //units the model expects as output
-
-        virtual double predict(double x, const lapis::LinearUnit& thisUnit, const lapis::LinearUnit& returnUnit = lapis::linearUnitPresets::meter) const = 0;
-        std::vector<double> predict(const std::vector<double>& x, const lapis::LinearUnit& thisUnit, const lapis::LinearUnit& returnUnit = lapis::linearUnitPresets::meter);
-
-        virtual ~Model() = default;
-
-        friend std::ostream& operator<<(std::ostream& os, const Model& m);
-
-    protected:
-        //override to make cout behavior work- pipe the output you'd like into os.
-        virtual void print(std::ostream& os) const = 0;
-    };
-
-    inline std::ostream& operator<<(std::ostream& os, const Model& m) {
-        m.print(os);
-        return(os);
-    }
 
     class FIAReader {
     public:
@@ -135,7 +145,7 @@ namespace rxtools::allometry {
     using AllometryRaster = lapis::Raster < std::shared_ptr<Model>>;
 
     template<class T, class MODEL>
-    AllometryRaster calculateAllometryOverProjectArea(lapis::Raster<T> r, FIAReader fia) {
+    AllometryRaster calculateAllometryOverProjectArea(lapis::Raster<T> r, FIAReader fia, std::string responseName, lapis::Unit responseUnit) {
         int id = 0;
         std::vector<std::pair<std::unordered_set<FIAReader::PlotPointName>, int>> knnToId;
         std::unordered_map<int, std::unordered_set<FIAReader::PlotPointName>> idToKnn;

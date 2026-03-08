@@ -6,17 +6,6 @@
 #include "allometry.hpp"
 
 namespace rxtools::allometry {
-    namespace transforms {
-        const UnivariateLinearModel::Transform none;
-        const UnivariateLinearModel::Transform square; //The response should be squared
-        const UnivariateLinearModel::Transform cube; //The response should be cubed
-        const UnivariateLinearModel::Transform power; //A log-log transform should be applied
-
-        const UnivariateLinearModel::Transform sqrt; //The response should be square-rooted
-        const UnivariateLinearModel::Transform curt; //The response should be cube-rooted
-        const UnivariateLinearModel::Transform log; //The response should be log-transformed
-    }
-
     // This model will create a linear model (perhaps with transform) from height to the specified response variable.
     class UnivariateLinearModel : public Model {
     public:
@@ -32,13 +21,13 @@ namespace rxtools::allometry {
             double intercept;
             double rsq;
             Transform transform;
-            Parameters() : slope(0), intercept(0), rsq(0), transform(transforms::none) {}
+            Parameters(); //Declared inline after transforms because it needs to reference transforms::none
             Parameters(const double& s, const double& i, const Transform& t, const double& r) :
                 slope(s), intercept(i), rsq(r), transform(t) {}
         };
 
         Parameters parameters;
-        double predict(double x, const lapis::LinearUnit& thisUnit, const lapis::LinearUnit& returnUnit) const;
+        double predict(double x, const lapis::Unit& thisUnit, const lapis::Unit& returnUnit) const;
 
 
     protected:
@@ -49,13 +38,62 @@ namespace rxtools::allometry {
 
     };
 
+    namespace transforms {
+        inline const UnivariateLinearModel::Transform none{
+            "None",
+            [](double x) { return x; },
+            [](double y) { return y; },
+            [](double y) { return y; }
+        };
+        inline const UnivariateLinearModel::Transform square{
+            "Square",
+            [](double x) { return x; },
+            [](double y) { return y * y; },
+            [](double y) { return std::sqrt(y); }
+        };
+        inline const UnivariateLinearModel::Transform cube{
+            "Cube",
+            [](double x) { return x; },
+            [](double y) { return y * y * y; },
+            [](double y) { return std::cbrt(y); }
+        };
+        inline const UnivariateLinearModel::Transform power{
+            "Power (log-log)",
+            [](double x) { return std::log(x); },
+            [](double y) { return std::log(y); },
+            [](double y) { return std::exp(y); }
+        };
+        inline const UnivariateLinearModel::Transform sqrt{
+            "Square-root",
+            [](double x) { return x; },
+            [](double y) { return std::sqrt(y); },
+            [](double y) { return y * y; }
+        };
+        inline const UnivariateLinearModel::Transform curt{
+            "Cube-root",
+            [](double x) { return x; },
+            [](double y) { return std::cbrt(y); },
+            [](double y) { return y * y * y; }
+        };
+        inline const UnivariateLinearModel::Transform log{
+            "Log",
+            [](double x) { return x; },
+            [](double y) { return std::log(y); },
+            [](double y) { return std::exp(y); }
+        };
+    }
+
+    inline UnivariateLinearModel::Parameters::Parameters()
+        : slope(0), intercept(0), rsq(0), transform(transforms::none) {
+    }
+
     class DbhModel : public UnivariateLinearModel {
     public:
         DbhModel() {};
         DbhModel(const double& slope, const double& intercept, const Transform& transform, const double& rsq,
-            const lapis::LinearUnit& heightUnit, const lapis::LinearUnit& diameterUnit);
+            const lapis::Unit& heightUnit, const lapis::Unit& diameterUnit);
         DbhModel(const std::vector<double>& heights, const std::vector<double>& diameters,
-            const lapis::LinearUnit& heightUnit, const lapis::LinearUnit& diameterUnit,
+            const lapis::Unit& heightUnit, const lapis::Unit& diameterUnit,
             std::optional<Transform> transform = std::nullopt);
     protected:
         std::vector<Transform> candidateTransforms() const override;
@@ -65,9 +103,9 @@ namespace rxtools::allometry {
     public:
         CrownModel() {};
         CrownModel(const double& slope, const double& intercept, const Transform& transform, const double& rsq,
-            const lapis::LinearUnit& heightUnit, const lapis::LinearUnit& crownUnit);
+            const lapis::Unit& heightUnit, const lapis::Unit& crownUnit);
         CrownModel(const std::vector<double>& heights, const std::vector<double>& crowns,
-            const lapis::LinearUnit& heightUnit, const lapis::LinearUnit& crownUnit,
+            const lapis::Unit& heightUnit, const lapis::Unit& crownUnit,
             std::optional<Transform> transform = std::nullopt);
     protected:
         std::vector<Transform> candidateTransforms() const override;
@@ -77,9 +115,9 @@ namespace rxtools::allometry {
     public:
         BiomassModel() {};
         BiomassModel(const double& slope, const double& intercept, const Transform& transform, const double& rsq,
-            const lapis::LinearUnit& heightUnit, const lapis::LinearUnit& biomassUnit);
+            const lapis::Unit& heightUnit, const lapis::Unit& biomassUnit);
         BiomassModel(const std::vector<double>& heights, const std::vector<double>& biomasses,
-            const lapis::LinearUnit& heightUnit, const lapis::LinearUnit& biomassUnit,
+            const lapis::Unit& heightUnit, const lapis::Unit& biomassUnit,
             std::optional<Transform> transform = std::nullopt);
     protected:
         std::vector<Transform> candidateTransforms() const override;
