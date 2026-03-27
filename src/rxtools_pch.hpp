@@ -31,4 +31,7 @@
 //Fast csv (self)
 #include "csv.hpp"
 
+//lapis
+#include "lapisgis.hpp"
+
 #endif

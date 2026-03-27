@@ -36,7 +36,19 @@ set(RXTOOLS_EXTERNAL_LINKS
 	)
 
 add_library(RxTools STATIC ${RXTOOLS_SOURCES})
-target_include_directories(RxTools PRIVATE ${RXTOOLS_EXTERNAL_INCLUDES})
+target_include_directories(RxTools
+    PUBLIC
+        ${RXTOOLS_DIR}/src
+        ${RXTOOLS_EXTERNAL_INCLUDES}
+)
+target_link_libraries(RxTools
+    PUBLIC
+        ${LAPISGIS_LINKS}
+        ${LICO_LINKS}
+        ${PROCESSEDFOLDER_LINKS}
+        Eigen3::Eigen
+        Boost::program_options
+)
 target_precompile_headers(RxTools PRIVATE ${RXTOOLS_DIR}/src/rxtools_pch.hpp)
 
 set(RXTOOLS_INCLUDES

@@ -3,7 +3,7 @@
 
 namespace rxtools {
 
-    Lmu::Lmu(std::string path, TaoGettersPt getters) {
+    Lmu::Lmu(std::string path, TaoGetters<lapis::VectorDataset<lapis::Point>> getters) {
         try {
             mask = lapis::Raster<lapis::cell_t>(path + "ridgeTop.tif");
             type = LmuType::ridgeTop;
@@ -27,12 +27,12 @@ namespace rxtools {
         auto p = std::filesystem::path(path);
         p /= "units";
         for (auto& entry : std::filesystem::directory_iterator(p)) {
-            auto rx = RxUnit(entry.path().string(), getters);
+            auto rx = RxUnit(entry.path().string());
             units.push_back(rx);
         }
     }
 
-    void Lmu::makeUnits(const lapis::VectorDataset<lapis::MultiPolygon>& unitsPoly, const TaoListPt& tl, const bool& overrideTargets) {
+    void Lmu::makeUnits(const lapis::VectorDataset<lapis::MultiPolygon>& unitsPoly, const TaoList& tl, const bool& overrideTargets) {
         if (units.size()) {
             throw std::runtime_error("Units have already been calculated");
         }

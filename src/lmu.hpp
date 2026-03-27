@@ -25,12 +25,12 @@ public:
 
     Lmu() {};
     Lmu(lapis::Raster<lapis::cell_t> mask, LmuType t) : mask(mask), type(t) {};
-    Lmu(std::string path, TaoGettersPt getters);
+    Lmu(std::string path, TaoGetters<lapis::VectorDataset<lapis::Point>> getters);
 
-    void makeUnits(const lapis::VectorDataset<lapis::MultiPolygon>& unitsPoly, const TaoListPt& tl, const bool& overrideTargets);
+    void makeUnits(const lapis::VectorDataset<lapis::MultiPolygon>& unitsPoly, const TaoList& tl, const bool& overrideTargets);
 
     template<class T>
-    void makeUnits(const lapis::Raster<T>& unitsRaster, const TaoListPt& tl) {
+    void makeUnits(const lapis::Raster<T>& unitsRaster, const TaoList& tl) {
         if (units.size()) {
             throw std::runtime_error("Units have already been calculated");
         }
