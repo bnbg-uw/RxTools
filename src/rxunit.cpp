@@ -228,11 +228,11 @@ namespace rxtools {
         std::vector<int> binMaxs;
         for (int i = 5; i < row.size(); ++i) {
             if (i % 3 == 1) // 5 % 3 = 2 = min, 6 % 3 = 0 = csd, 7 % 3 = 1 = max
-                binMaxs.push_back(std::stod(row[i]));
+                binMaxs.push_back(std::stoi(row[i]));
             else if (i % 3 == 2)
                 binMins.push_back(std::stoi(row[i]));
             else
-                csd.push_back(std::stoi(row[i]));
+                csd.push_back(std::stod(row[i]));
         }
         std::cout << csd.size() << " " << binMaxs.size() << " " << binMins.size() << "\n";
         currentStructure = StructureSummary(std::stod(row[1]), std::stod(row[2]), std::stod(row[3]), std::stod(row[4]), csd, binMins, binMaxs);
@@ -243,11 +243,11 @@ namespace rxtools {
         binMaxs.clear();
         for (int i = 5; i < row.size(); ++i) {
             if (i % 3 == 1)
-                binMaxs.push_back(std::stod(row[i]));
+                binMaxs.push_back(std::stoi(row[i]));
             else if (i % 3 == 2)
                 binMins.push_back(std::stoi(row[i]));
             else
-                csd.push_back(std::stoi(row[i]));
+                csd.push_back(std::stod(row[i]));
         }
         std::cout << csd.size() << " " << binMaxs.size() << " " << binMins.size() << "\n";
 
@@ -259,11 +259,11 @@ namespace rxtools {
         binMaxs.clear();
         for (int i = 5; i < row.size(); ++i) {
             if (i % 3 == 1)
-                binMaxs.push_back(std::stod(row[i]));
+                binMaxs.push_back(std::stoi(row[i]));
             else if (i % 3 == 2)
                 binMins.push_back(std::stoi(row[i]));
             else
-                csd.push_back(std::stoi(row[i]));
+                csd.push_back(std::stod(row[i]));
         }
         std::cout << csd.size() << " " << binMaxs.size() << " " << binMins.size() << "\n";
 
