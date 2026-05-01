@@ -2,7 +2,6 @@
 
 namespace rxtools {
     RxUnit::RxUnit(lapis::Raster<lapis::cell_t> mask, const TaoList& tl) : unitMask(mask) {
-        std::cout << "1\n";
         for (lapis::cell_t i = 0; i < mask.ncell(); ++i) {
             if (unitMask[i].has_value()) {
                 areaHa += unitMask.xres() * unitMask.yres();
@@ -12,19 +11,14 @@ namespace rxtools {
         auto conv = mask.crs().getXYLinearUnits()->convertOneFromThis(1, lapis::linearUnitPresets::meter);
         areaHa *= conv * conv;
         areaHa /= 10000.0;
-        std::cout << "2\n";
 
         taos = TaoList(tl.crs());
         for (int i = 0; i < tl.size(); i++) {
             if (unitMask.extract(tl.x(i), tl.y(i), lapis::ExtractMethod::near).has_value())
                 taos.addTao(tl.xy(i), tl.height(i), tl.radius(i), tl.area(i), tl.dbh(i));
         }
-        std::cout << "3\n";
 
-        std::cout << "Rxunit taos size: " << taos.size() << "\n";
         currentStructure = StructureSummary(taos, unitMask, areaHa);
-        std::cout << "4\n";
-
     }
 
     std::pair<StructureSummary, StructureSummary> RxUnit::getVirtualMinMax(std::default_random_engine dre, double bbDbh) {
