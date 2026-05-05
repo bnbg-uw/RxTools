@@ -44,15 +44,12 @@ namespace rxtools {
         };
 
         StructureSummary(const TaoList& taos, const lapis::Alignment& unitAlign, double areaHa) {
-            std::cout << "ssa\n";
             lapis::lico::GraphLico g{ unitAlign };
-            std::cout << "ssb\n";
 
             for (size_t i = 0; i < taos.size(); ++i) {
                 g.addTAO(taos.node(i), lapis::lico::NodeStatus::on);
             }
 
-            std::cout << "ssc\n";
             try {
                 mcs = 0;
                 cc = 0;
