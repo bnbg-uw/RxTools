@@ -60,7 +60,6 @@ namespace rxtools {
             }
 
             for (int i = 0; i < names.size(); ++i) {
-                std::cout << i << "\n";
                 lapis::Raster<double> rPre{ (lapis::Alignment)rx.unitMask };
                 lapis::Raster<double> rPost{ (lapis::Alignment)rx.unitMask };
                 lapis::Raster<double> rTarg{ (lapis::Alignment)rx.unitMask };
@@ -75,7 +74,6 @@ namespace rxtools {
                         rTarg[j].has_value() = true;
                     }
                 }
-                std::cout << "a\n";
 
                 if (pre.size() < names.size()) {
                     pre.push_back(lapis::Raster<double>{ (lapis::Alignment)ids });
@@ -113,8 +111,6 @@ namespace rxtools {
             atts.setRealField(atts.nFeature() - 1, "dbhMin", rx.dbhMin);
             atts.setRealField(atts.nFeature() - 1, "dbhMax", rx.dbhMax);
             atts.setIntegerField(atts.nFeature() - 1, "lmuCode", lmuCode);
-            std::cout << "d\n";
-
         }
 
         void write(std::string path) {
