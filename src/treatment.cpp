@@ -3,7 +3,7 @@
 namespace rxtools {
     using ns = lapis::lico::NodeStatus;
 
-    void Treatment::obligateIdx(TaoListPt& tl, std::vector<treatmentDecision>& treeStatus, std::vector<size_t>& treeIdx, size_t& focalIdx, std::unordered_set<size_t>& keepSet) {
+    void Treatment::obligateIdx(TaoList& tl, std::vector<treatmentDecision>& treeStatus, std::vector<size_t>& treeIdx, size_t& focalIdx, std::unordered_set<size_t>& keepSet) {
         std::vector<size_t> testIdx; //These are idx in the total dataset to test as focals.
         
         //Get all the trees that are not already known as keeps, but are obligate retzins and clump with the focal tree
@@ -22,7 +22,7 @@ namespace rxtools {
         // Since we pass keepSet by reference, it will be updated with the new taos as we go.
     }
 
-    std::tuple<TaoListPt, TaoListPt, treatmentResult> Treatment::doTreatment(
+    std::tuple<TaoList, TaoList, treatmentResult> Treatment::doTreatment(
         RxUnit rx, double dbhMin, double dbhMax, lapis::coord_t maxCrown,
         bool intermediates, std::string intermediatespath) 
     {
@@ -45,13 +45,6 @@ namespace rxtools {
         std::vector<size_t> taocrosswalk;
 
         //populate the graph and set up the crosswalk.
-        auto tnf = lapis::lico::TaoNodeFactory<lapis::VectorDataset<lapis::Point>>(
-            rx.taos.getters.predicate,
-            rx.taos.getters.xy,
-            rx.taos.getters.radius,
-            rx.taos.getters.area,
-            rx.taos.getters.dbh
-        );
         for (size_t i = 0; i < rx.taos.size(); ++i) {
             if (rx.taos.dbh(i) < dbhMin) {
                 continue;
@@ -59,12 +52,12 @@ namespace rxtools {
 
             taocrosswalk.push_back(i);
             if (rx.taos.dbh(i) > dbhMax) {
-                g.addTAO(tnf(rx.taos(i)), ns::on);
+                g.addTAO(rx.taos.node(i), ns::on);
                 currentba += g.nodes[g.nodes.size() - 1].ba;
                 currentntao++;
             }
             else {
-                g.addTAO(tnf(rx.taos(i)));
+                g.addTAO(rx.taos.node(i));
             }
         }
 
@@ -79,7 +72,7 @@ namespace rxtools {
         //should this check for node status?
         std::vector<double> csdCurrent(csdTargs.size());
         for (size_t i = 0; i < g.nodes.size(); ++i) {
-            int clumpSize = g.nodes[i].clumpSize();
+            int clumpSize = g.clumpSize(i);
             for (int j = 0; j < csdCurrent.size(); ++j) {
                 if (clumpSize >= binMins[j] && (clumpSize <= binMaxs[j] || j == csdCurrent.size()-1)) {
                     csdCurrent[j] += g.nodes[i].ba;
@@ -116,18 +109,17 @@ namespace rxtools {
         //std::cout << "start of while loop: " << sofar << " " << sample.size() << " " << currentba << " " << targetba << "\n";
         while (sofar < sample.size() && currentba < targetba) {
             size_t seedTao = sample[sofar];
-            lapis::lico::TaoNode& seedNode = g.nodes[seedTao];
             //std::cout << "node status: " << (int)seedNode.status << "\n";
-            if (seedNode.status != ns::off) {
+            if (g.nodes[seedTao].status != ns::off) {
                 sofar++;
                 continue;
             }
 
             sofar++;
-            //int approxMaxClump = seedNode.maxClumpSizeApprox();
-            int exactMaxClump = seedNode.maxClumpSizeExact();
+            //int approxMaxClump = g.maxClumpSizeApprox(seedTao);
+            int exactMaxClump = g.maxClumpSizeExact(seedTao);
             int maxClump = exactMaxClump; //For now, using the slow but precise calculation. Will test how far off the approximation is and possible switch which one we use
-            int minClump = seedNode.peekClumpSize();
+            int minClump = g.peekClumpSize(seedTao);
 
             //std::cout << "maxclump " << exactMaxClump << "minclump " << minClump << "sofar: " << sofar << "\n";
             std::vector<double> binWeights(csdTargs.size());
@@ -149,12 +141,12 @@ namespace rxtools {
                 }
             }
             if (bwSum == 0) { // this TAO belongs to a clump so small or so large that it can't contribute to the bins that need more trees
-                seedNode.maxClumpSizeApprox()--;
-                seedNode.cutTAO();
+                g.maxClumpSizeApprox(seedTao)--;
+                g.cutTAO(seedTao);
                 continue;
             }
 
-            //seedNode.turnOn();
+            //g.turnOn(seedTao);
             //currentba += seedNode.ba;
             size_t binIdx = utilities::randomIdxFromWeights(binWeights, dre);
             std::uniform_int_distribution<int> d(binMins[binIdx], binMaxs[binIdx]);
@@ -168,11 +160,11 @@ namespace rxtools {
             //inClump.insert(seedNode.index);
 
             std::priority_queue<NodePriority, std::vector<NodePriority>, NodePriorityComparator> adjQueue;
-            adjQueue.push(NodePriority{ priority[seedNode.index],seedNode.index });
+            adjQueue.push(NodePriority{ priority[seedTao],seedTao });
             std::unordered_set<size_t> considered;
-            considered.insert(seedNode.index);
+            considered.insert(seedTao);
 
-            while (seedNode.clumpSize() < targN) {
+            while (g.clumpSize(seedTao) < targN) {
                 //pop off of adjQueue until we get a TAO which doesn't take us over the bin threshold
                 size_t addTAO;
                 bool giveup = false;
@@ -184,7 +176,7 @@ namespace rxtools {
                     }
                     addTAO = adjQueue.top().index;
                     adjQueue.pop();
-                    if (g.nodes[addTAO].peekClumpSize() <= doNotExceed) {
+                    if (g.peekClumpSize(addTAO) <= doNotExceed) {
                         foundone = true;
                     }
                 }
@@ -209,12 +201,12 @@ namespace rxtools {
                 //updating csdCurrent to account for the clumps changing in size
                 std::unordered_set<size_t> adjClumps;
                 for (size_t adj : g.nodes[addTAO].adjList) {
-                    if (adjClumps.count(g.nodes[adj].findAncestor().index)) {
+                    if (adjClumps.count(g.findAncestor(adj))) {
                         continue;
                     }
-                    adjClumps.insert(g.nodes[adj].findAncestor().index);
-                    int size = g.nodes[adj].clumpSize();
-                    double ba = g.nodes[adj].getClumpBA();
+                    adjClumps.insert(g.findAncestor(adj));
+                    int size = g.clumpSize(adj);
+                    double ba = g.getClumpBA(adj);
                     for (int i = 0; i < csdCurrent.size(); ++i) {
                         if (size >= binMins[i] && (size <= binMaxs[i] || i == csdCurrent.size() - 1)) {
                             csdCurrent[i] -= ba;
@@ -223,9 +215,9 @@ namespace rxtools {
                 }
 
                 //turn on addTAO and update current ba and csd
-                int size = g.nodes[addTAO].turnOn();
+                int size = g.turnOn(addTAO);
                 currentba += g.nodes[addTAO].ba;
-                double ba = g.nodes[addTAO].getClumpBA();
+                double ba = g.getClumpBA(addTAO);
                 inClump.insert(addTAO);
                 for (int i = 0; i < csdCurrent.size(); ++i) {
                     if (size >= binMins[i] && (size <= binMaxs[i] || i == csdCurrent.size() - 1)) {
@@ -235,21 +227,24 @@ namespace rxtools {
             } //While(seedNode.clumpSize() > targN)
 
             //Cut the adjacent TAOs
-            seedNode.maxClumpSizeApprox() -= seedNode.clumpSize();
+            g.maxClumpSizeApprox(seedTao) -= g.clumpSize(seedTao);
             for (size_t idx : inClump) {
                 for (size_t adj : g.nodes[idx].adjList) {
-                    lapis::lico::TaoNode& n = g.nodes[adj];
-                    if (n.status == ns::off) {
-                        n.cutTAO();
-                        seedNode.maxClumpSizeApprox()--;
+                    if (g.nodes[adj].status == ns::off) {
+                        g.cutTAO(adj);
+                        g.maxClumpSizeApprox(seedTao)--;
                     }
                 }
             }
             if (intermediates) {
-                TaoListPt out;
+                TaoList out(rx.taos.crs());
                 for (size_t i = 0; i < g.nodes.size(); ++i) {
                     if (g.nodes[i].status == ns::on) {
-                        out.taoVector.addFeature(rx.taos(taocrosswalk[i]));
+                        out.addTao(rx.taos.xy(taocrosswalk[i]),
+                            rx.taos.height(taocrosswalk[i]),
+                            rx.taos.radius(taocrosswalk[i]),
+                            rx.taos.area(taocrosswalk[i]),
+                            rx.taos.dbh(taocrosswalk[i]));
                     }
                 }
                 std::cout << intermediatespath + std::to_string(step) + ".csv" << "\n";
@@ -268,11 +263,15 @@ namespace rxtools {
         if (intermediates) targetstream.close();
 
         //Convert it all to a TaoList
-        TaoListPt keep{ rx.taos, true };
-        TaoListPt cut{ rx.taos, true };
+        TaoList keep(rx.taos.crs());
+        TaoList cut(rx.taos.crs());
         for (size_t i = 0; i < g.nodes.size(); ++i) {
             if (g.nodes[i].status == ns::on) {
-                keep.taoVector.addFeature(rx.taos(taocrosswalk[i]));
+                keep.addTao(rx.taos.xy(taocrosswalk[i]),
+                    rx.taos.height(taocrosswalk[i]),
+                    rx.taos.radius(taocrosswalk[i]),
+                    rx.taos.area(taocrosswalk[i]),
+                    rx.taos.dbh(taocrosswalk[i]));
             }
         }
 
@@ -281,7 +280,11 @@ namespace rxtools {
             result = treatmentResult::cuttingFailure;
             for (size_t i : sample) {
                 if (g.nodes[i].status != ns::on) {
-                    keep.taoVector.addFeature(rx.taos(taocrosswalk[i]));
+                    keep.addTao(rx.taos.xy(taocrosswalk[i]),
+                        rx.taos.height(taocrosswalk[i]),
+                        rx.taos.radius(taocrosswalk[i]),
+                        rx.taos.area(taocrosswalk[i]),
+                        rx.taos.dbh(taocrosswalk[i]));
                     currentba += g.nodes[i].ba;
                     g.nodes[i].status = ns::on;
                     if (currentba >= targetba) {
@@ -294,7 +297,11 @@ namespace rxtools {
         // Add the off nodes to the cut list (trees below dbhmin not in the graph)
         for (size_t i = 0; i < g.nodes.size(); ++i) {
             if (g.nodes[i].status != ns::on) {
-                cut.taoVector.addFeature(rx.taos(taocrosswalk[i]));
+                cut.addTao(rx.taos.xy(taocrosswalk[i]),
+                    rx.taos.height(taocrosswalk[i]),
+                    rx.taos.radius(taocrosswalk[i]),
+                    rx.taos.area(taocrosswalk[i]),
+                    rx.taos.dbh(taocrosswalk[i]));
             }
         }
 
@@ -305,14 +312,22 @@ namespace rxtools {
             if (rx.taos.dbh(i) < dbhMin) {
                 if (currentba < targetba) {
                     result = treatmentResult::cuttingFailure;
-                    keep.taoVector.addFeature(rx.taos(i));
+                    keep.addTao(rx.taos.xy(i),
+                        rx.taos.height(i),
+                        rx.taos.radius(i),
+                        rx.taos.area(i),
+                        rx.taos.dbh(i));
                     currentba += rx.taos.dbh(i) * rx.taos.dbh(i) / 2. / 2. / 100. / 100. * M_PI;
                     if (currentba >= targetba) {
                         break;
                     }
                 }
                 else {
-                    cut.taoVector.addFeature(rx.taos(i));
+                    cut.addTao(rx.taos.xy(i),
+                        rx.taos.height(i),
+                        rx.taos.radius(i),
+                        rx.taos.area(i),
+                        rx.taos.dbh(i));
                 }
             }
         }

@@ -5,7 +5,6 @@
 
 #include "rxtools_pch.hpp"
 #include "utilities.hpp"
-#include "Raster.hpp"
 
 namespace rxtools::allometry {
     namespace bg = boost::geometry;

@@ -3,16 +3,16 @@
 #ifndef rxtools_projectarea_h
 #define rxtools_projectarea_h
 
+#include "rxtools_pch.hpp"
 #include "utilities.hpp"
 #include "lmu.hpp"
 #include "readProcessedFolder.hpp"
-#include "RasterAlgos.hpp"
 
 namespace rxtools {
     class ProjectArea {
     public:
         std::unique_ptr<processedfolder::ProcessedFolder> lidarDataset;
-        TaoListPt allTaos{};
+        TaoList allTaos{};
         bool allTaosInit = false;
         lapis::VectorDataset<lapis::MultiPolygon> projectPoly;
 

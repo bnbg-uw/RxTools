@@ -1,7 +1,7 @@
 #include "rxunit.hpp"
 
 namespace rxtools {
-    RxUnit::RxUnit(lapis::Raster<lapis::cell_t> mask, const TaoListPt& tl) : unitMask(mask) {
+    RxUnit::RxUnit(lapis::Raster<lapis::cell_t> mask, const TaoList& tl) : unitMask(mask) {
         for (lapis::cell_t i = 0; i < mask.ncell(); ++i) {
             if (unitMask[i].has_value()) {
                 areaHa += unitMask.xres() * unitMask.yres();
@@ -12,12 +12,12 @@ namespace rxtools {
         areaHa *= conv * conv;
         areaHa /= 10000.0;
 
-        taos = TaoListPt(tl, true);
+        taos = TaoList(tl.crs());
         for (int i = 0; i < tl.size(); i++) {
             if (unitMask.extract(tl.x(i), tl.y(i), lapis::ExtractMethod::near).has_value())
-                taos.taoVector.addFeature(tl.taoVector.getFeature(i));
+                taos.addTao(tl.xy(i), tl.height(i), tl.radius(i), tl.area(i), tl.dbh(i));
         }
-        std::cout << "Rxunit taos size: " << taos.size() << "\n";
+
         currentStructure = StructureSummary(taos, unitMask, areaHa);
     }
 
@@ -40,25 +40,17 @@ namespace rxtools {
                     (lapis::rowcol_t)std::ceil((unitMask.xmax() - unitMask.xmin()) / 3), 3, 3 };
         lapis::lico::GraphLico g{ a };
 
-        auto tnf = lapis::lico::TaoNodeFactory<lapis::VectorDataset<lapis::Point>>(
-            taos.getters.predicate,
-            taos.getters.xy,
-            taos.getters.radius,
-            taos.getters.area,
-            taos.getters.dbh
-        );
-
         //add all bb trees.
         std::vector<size_t> idxs;
         for (size_t i = 0; i < taos.size(); ++i) {
             if (taos.dbh(i) > bbDbh) {
-                g.addTAO(tnf(taos(i)), lapis::lico::NodeStatus::on);
+                g.addTAO(taos.node(i), lapis::lico::NodeStatus::on);
                 min.ba += g.nodes[g.nodes.size() - 1].ba;
                 min.tph++;
                 min.cc += g.nodes[g.nodes.size() - 1].area;
             }
             else {
-                g.addTAO(tnf(taos(i)));
+                g.addTAO(taos.node(i));
                 idxs.push_back(i);
             }
         }
@@ -79,7 +71,7 @@ namespace rxtools {
             if (g.nodes[i].status != lapis::lico::NodeStatus::on) {
                 continue;
             }
-            int clumpSize = g.nodes[i].clumpSize();
+            int clumpSize = g.clumpSize(i);
             numCurrent += clumpSize;
             denCurrent++;
             for (int j = 0; j < csdCurrent.size(); ++j) {
@@ -101,10 +93,10 @@ namespace rxtools {
             lapis::lico::GraphLico g2{ a };
             for (size_t i = 0; i < taos.size(); ++i) {
                 if (taos.dbh(i) > bbDbh) {
-                    g2.addTAO(tnf(taos(i)), lapis::lico::NodeStatus::on);
+                    g2.addTAO(taos.node(i), lapis::lico::NodeStatus::on);
                 }
                 else {
-                    g2.addTAO(tnf(taos(i)));
+                    g2.addTAO(taos.node(i));
                 }
             }
 
@@ -116,13 +108,13 @@ namespace rxtools {
             for (auto idx : idxs) {
                 std::unordered_set<size_t> adjClumps;
                 for (size_t adj : g2.nodes[idx].adjList) {
-                    if (adjClumps.count(g2.nodes[adj].findAncestor().index)) {
+                    if (adjClumps.count(g2.findAncestor(adj))) {
                         continue;
                     }
-                    adjClumps.insert(g2.nodes[adj].findAncestor().index);
-                    int size = g2.nodes[adj].clumpSize();
+                    adjClumps.insert(g2.findAncestor(adj));
+                    int size = g2.clumpSize(adj);
                     thisNum -= size * size;
-                    double ba = g2.nodes[adj].getClumpBA();
+                    double ba = g2.getClumpBA(adj);
                     for (int i = 0; i < thisCsd.size(); ++i) {
                         if (size >= min.binMins[i] && (size <= min.binMaxs[i] || i == thisCsd.size() - 1)) {
                             thisCsd[i] -= ba;
@@ -131,10 +123,10 @@ namespace rxtools {
                 }
 
                 //turn on addTAO and update current ba and csd
-                int size = g2.nodes[idx].turnOn();
+                int size = g2.turnOn(idx);
                 thisNum += size * size;
                 thisDen++;
-                double ba = g2.nodes[idx].getClumpBA();
+                double ba = g2.getClumpBA(idx);
                 for (int i = 0; i < thisCsd.size(); ++i) {
                     if (size >= min.binMins[i] && (size <= min.binMaxs[i] || i == thisCsd.size() - 1)) {
                         thisCsd[i] += ba;
@@ -155,12 +147,12 @@ namespace rxtools {
 
     void RxUnit::write(std::string path, allometry::FastFuels ffa) {
         taos.writeCsv(path + "/taos.csv");
-        taos.taoVector.writeShapefile(path + "/taos.shp");
+        taos.writeShapefile(path + "/taos.shp");
         unitMask.writeRaster(path + "/unitMask.tif", "GTiff", std::numeric_limits<lapis::cell_t>::lowest(), GDT_UInt32);
         //chm.writeRaster(path + "/chm.tif");
         //basinMap.writeRaster(path + "/basinmap.tif");
         treatedTaos.writeCsv(path + "/treatedTaos.csv");
-        treatedTaos.taoVector.writeShapefile(path + "/treatedTaos.shp");
+        treatedTaos.writeShapefile(path + "/treatedTaos.shp");
 
         //treatedChm.writeRaster(path + "/treatedChm.tif");
 
@@ -197,14 +189,22 @@ namespace rxtools {
         out.close();
     }
 
-    RxUnit::RxUnit(std::string path, TaoGettersPt getters) {
+    RxUnit::RxUnit(std::string path) {
+        TaoGetters<lapis::VectorDataset<lapis::Point>> getters{
+            [](const lapis::VectorDataset<lapis::Point>::ConstFeatureType& f) { return true; },
+            [](const lapis::VectorDataset<lapis::Point>::ConstFeatureType& f) { return lapis::CoordXY{ f.getNumericField<lapis::coord_t>("X"), f.getNumericField<lapis::coord_t>("Y") }; },
+            [](const lapis::VectorDataset<lapis::Point>::ConstFeatureType& f) { return f.getNumericField<lapis::coord_t>("Height"); },
+            [](const lapis::VectorDataset<lapis::Point>::ConstFeatureType& f) { return f.getNumericField<lapis::coord_t>("Radius"); },
+            [](const lapis::VectorDataset<lapis::Point>::ConstFeatureType& f) { return f.getNumericField<lapis::coord_t>("Area"); },
+            [](const lapis::VectorDataset<lapis::Point>::ConstFeatureType& f) { return f.getNumericField<double>("DBH"); }
+        };
         //std::cout << "dbhf load\n";
-        taos = TaoListPt(path + "/taos.shp", getters);
+        taos = TaoList(path + "/taos.shp", getters);
        // std::cout << "taos load\n";
         unitMask = lapis::Raster<lapis::cell_t>(path + "/unitMask.tif");
         //chm = spatial::Raster<double>(path + "/chm.tif");
         //unitMask = spatial::Raster<int>(path + "/basinmap.tif");
-        treatedTaos = TaoListPt(path + "/treatedTaos.shp", getters);
+        treatedTaos = TaoList(path + "/treatedTaos.shp", getters);
         //treatedChm = spatial::Raster<double>(path + "/treatedChm.tif");
 
         //std::cout << "metaddata\n";
@@ -222,11 +222,11 @@ namespace rxtools {
         std::vector<int> binMaxs;
         for (int i = 5; i < row.size(); ++i) {
             if (i % 3 == 1) // 5 % 3 = 2 = min, 6 % 3 = 0 = csd, 7 % 3 = 1 = max
-                binMaxs.push_back(std::stod(row[i]));
+                binMaxs.push_back(std::stoi(row[i]));
             else if (i % 3 == 2)
                 binMins.push_back(std::stoi(row[i]));
             else
-                csd.push_back(std::stoi(row[i]));
+                csd.push_back(std::stod(row[i]));
         }
         std::cout << csd.size() << " " << binMaxs.size() << " " << binMins.size() << "\n";
         currentStructure = StructureSummary(std::stod(row[1]), std::stod(row[2]), std::stod(row[3]), std::stod(row[4]), csd, binMins, binMaxs);
@@ -237,11 +237,11 @@ namespace rxtools {
         binMaxs.clear();
         for (int i = 5; i < row.size(); ++i) {
             if (i % 3 == 1)
-                binMaxs.push_back(std::stod(row[i]));
+                binMaxs.push_back(std::stoi(row[i]));
             else if (i % 3 == 2)
                 binMins.push_back(std::stoi(row[i]));
             else
-                csd.push_back(std::stoi(row[i]));
+                csd.push_back(std::stod(row[i]));
         }
         std::cout << csd.size() << " " << binMaxs.size() << " " << binMins.size() << "\n";
 
@@ -253,11 +253,11 @@ namespace rxtools {
         binMaxs.clear();
         for (int i = 5; i < row.size(); ++i) {
             if (i % 3 == 1)
-                binMaxs.push_back(std::stod(row[i]));
+                binMaxs.push_back(std::stoi(row[i]));
             else if (i % 3 == 2)
                 binMins.push_back(std::stoi(row[i]));
             else
-                csd.push_back(std::stoi(row[i]));
+                csd.push_back(std::stod(row[i]));
         }
         std::cout << csd.size() << " " << binMaxs.size() << " " << binMins.size() << "\n";
 

@@ -4,7 +4,6 @@
 #define rxtools_structuresummary_h
 
 #include "rxtools_pch.hpp"
-#include "Raster.hpp"
 #include "allometry.hpp"
 #include "GraphLico.hpp"
 
@@ -44,16 +43,19 @@ namespace rxtools {
                 throw std::invalid_argument("csd, binmins, and binmaxs should all have equal size.");
         };
 
-        StructureSummary(const TaoListPt& taos, const lapis::Alignment& unitAlign, double areaHa) {
+        StructureSummary(const TaoList& taos, const lapis::Alignment& unitAlign, double areaHa) {
             lapis::lico::GraphLico g{ unitAlign };
-            g.addDataset(taos.taoVector, taos.nodeFactory, lapis::lico::NodeStatus::on);
+
+            for (size_t i = 0; i < taos.size(); ++i) {
+                g.addTAO(taos.node(i), lapis::lico::NodeStatus::on);
+            }
 
             try {
                 mcs = 0;
                 cc = 0;
                 ba = 0;
                 for (size_t i = 0; i < g.nodes.size(); ++i) {
-                    mcs += g.nodes.at(i).clumpSize();
+                    mcs += g.clumpSize(i);
                     cc += g.nodes.at(i).area;
                     ba += g.nodes.at(i).ba;
                 }
@@ -66,7 +68,7 @@ namespace rxtools {
                 throw e;
             }
             catch (std::exception e) {
-                std::cout << e.what();
+                std::cout << "Caught error in structure summary " << e.what();
                 throw e;
             }
 
@@ -74,7 +76,7 @@ namespace rxtools {
 
             try {
                 for (int i = 0; i < g.nodes.size(); i++) { //TODO: don't hardcode these bins
-                    auto clsz = g.nodes[i].clumpSize();
+                    auto clsz = g.clumpSize(i);
                     if (clsz == 1)
                         csd[0]++;
                     else if (clsz < 5)

@@ -3,9 +3,8 @@
 #ifndef rxtools_taolist_h
 #define rxtools_taolist_h
 
-#include "Vector.hpp"
+#include "rxtools_pch.hpp"
 #include "GraphLico.hpp"
-#include "Coordinate.hpp"
 
 namespace rxtools {
 
@@ -22,74 +21,59 @@ namespace rxtools {
         lapis::lico::TaoDbhGetter<DATASET> dbh;
     };
 
-    template<class DATASET>
     class TaoList {
     public:
-        TaoGetters<DATASET> getters;
-        lapis::lico::TaoNodeFactory<DATASET> nodeFactory;
-        DATASET taoVector;
-
         TaoList() = default;
-        TaoList(const TaoList<DATASET>& tl, bool empty=false) : taoVector(empty ? lapis::emptyVectorDatasetFromTemplate(tl.taoVector) : tl.taoVector), getters(tl.getters), nodeFactory(tl.nodeFactory) {}
-        TaoList(DATASET t, TaoGetters<DATASET> g) : taoVector(t), getters(g), nodeFactory(g.predicate, g.xy, g.radius, g.area, g.dbh) {}
-        TaoList(std::string f, TaoGetters<DATASET>  g) : taoVector(DATASET(f)), getters(g), nodeFactory(g.predicate, g.xy, g.radius, g.area, g.dbh) {}
+        TaoList(const lapis::CoordRef& crs) : _xy(crs) {}
+        
+        template<class DATASET>
+        TaoList(DATASET t, TaoGetters<DATASET> g);
 
-        const typename DATASET::ConstFeatureType operator()(size_t i) {
-            return taoVector.getFeature(i);
-        }
+        template<class DATASET>
+        TaoList(std::string f, TaoGetters<DATASET>  g);
 
-        const lapis::lico::TaoNode nodeFromIndex(size_t i)  const {
-            return nodeFactory(taoVector.getFeature(i));
-        }
+        const lapis::CoordRef& crs() const;
+        void addTao(lapis::CoordXY xy, lapis::coord_t height, lapis::coord_t radius, lapis::coord_t area, lapis::coord_t dbh);
+        const size_t size() const;
 
-        const size_t size() const {
-            return taoVector.nFeature();
-        }
+        const lapis::CoordXY xy(size_t i) const;
+        const lapis::coord_t x(size_t i) const;
+        const lapis::coord_t y(size_t i) const;
+        const lapis::coord_t height(size_t i) const;
+        const lapis::coord_t radius(size_t i) const;
+        const lapis::coord_t area(size_t i) const;
+        const double dbh(size_t i) const;
 
-        const lapis::CoordXY xy(size_t i) const {
-            return getters.xy(taoVector.getFeature(i));
-        }
+        const lapis::lico::TaoNode node(size_t i) const;
 
-        const lapis::coord_t x(size_t i) const {
-            return xy(i).x;
-        }
+        void writeCsv(std::filesystem::path path) const;
+        void writeShapefile(std::filesystem::path path) const;
 
-        const lapis::coord_t y(size_t i) const {
-            return xy(i).y;
-        }
-
-        const lapis::coord_t height(size_t i) const {
-            return getters.height(taoVector.getFeature(i));
-        }
-
-        const lapis::coord_t radius(size_t i) const {
-            return getters.radius(taoVector.getFeature(i));
-        }
-
-        const lapis::coord_t area(size_t i) const {
-            return getters.area(taoVector.getFeature(i));
-        }
-
-        const double dbh(size_t i) const  {
-            return getters.dbh(taoVector.getFeature(i));
-        }
-
-        void writeCsv(std::filesystem::path path) const {
-            std::ofstream out;
-            out.open(path);
-
-            out << "GridHighX,GridHighY,PolyArea,GridMaxHt,Radius,DBH\n" << std::setprecision(std::numeric_limits<double>::max_digits10);
-            for (int i = 0; i < size(); i++) {
-                out << x(i) << "," << y(i) << "," << area(i) << "," << height(i) << "," << radius(i) << "," << dbh(i) << "\n";
-            }
-            out.close();
-        }
+    private:
+        lapis::CoordXYVector _xy;
+        std::vector<lapis::coord_t> _height;
+        std::vector<lapis::coord_t> _radius;
+        std::vector<lapis::coord_t> _area;
+        std::vector<double> _dbh;
     };
 
-    using TaoListMP = TaoList<lapis::VectorDataset<lapis::MultiPolygon>>;
-    using TaoGettersMP = TaoGetters<lapis::VectorDataset<lapis::MultiPolygon>>;
-    
-    using TaoListPt = TaoList<lapis::VectorDataset<lapis::Point>>;
-    using TaoGettersPt = TaoGetters<lapis::VectorDataset<lapis::Point>>;
+    template<class DATASET>
+    TaoList::TaoList(DATASET t, TaoGetters<DATASET> g) {
+        for (auto f : t) {
+            if (g.predicate(f)) {
+                addTao(g.xy(f), g.height(f), g.radius(f), g.area(f), g.dbh(f));
+            }
+        }
+    }
+
+    template<class DATASET>
+    TaoList::TaoList(std::string f, TaoGetters<DATASET>  g) {
+        DATASET dataset(f);
+        for (auto f : dataset) {
+            if (g.predicate(f)) {
+                addTao(g.xy(f), g.height(f), g.radius(f), g.area(f), g.dbh(f));
+            }
+        }
+    }
 } // namespace rxtools
 #endif //rxtools_taolist_h
