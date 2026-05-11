@@ -91,12 +91,12 @@ namespace rxtools {
         std::cout << numCurrent << " : " << denCurrent << "\n";
         for (int i = 0; i < 5; ++i) {
             lapis::lico::GraphLico g2{ a };
-            for (size_t i = 0; i < taos.size(); ++i) {
-                if (taos.dbh(i) > bbDbh) {
-                    g2.addTAO(taos.node(i), lapis::lico::NodeStatus::on);
+            for (size_t j = 0; j < taos.size(); ++j) {
+                if (taos.dbh(j) > bbDbh) {
+                    g2.addTAO(taos.node(j), lapis::lico::NodeStatus::on);
                 }
                 else {
-                    g2.addTAO(taos.node(i));
+                    g2.addTAO(taos.node(j));
                 }
             }
 
@@ -108,6 +108,9 @@ namespace rxtools {
             for (auto idx : idxs) {
                 std::unordered_set<size_t> adjClumps;
                 for (size_t adj : g2.nodes[idx].adjList) {
+                    if (g2.nodes[adj].status != lapis::lico::NodeStatus::on) {
+                        continue;
+                    }
                     if (adjClumps.count(g2.findAncestor(adj))) {
                         continue;
                     }
