@@ -22,6 +22,9 @@ namespace rxtools {
         // Since we pass keepSet by reference, it will be updated with the new taos as we go.
     }
 
+    //maxClumpSize stuff is commented out now because it is not used in this algorithm.
+    //I left it in so if we ever decide to wire that stuff in, we know where it has to be.
+    //We need to double check the maxparent idx routing though to ensure it is tracked correctly.
     std::tuple<TaoList, TaoList, treatmentResult> Treatment::doTreatment(
         RxUnit rx, double dbhMin, double dbhMax, lapis::coord_t maxCrown,
         bool intermediates, std::string intermediatespath) 
@@ -116,9 +119,10 @@ namespace rxtools {
             }
 
             sofar++;
+            //For now, using the slow but precise calculation. Will test how far off the approximation is and possible switch which one we use
             //int approxMaxClump = g.maxClumpSizeApprox(seedTao);
             int exactMaxClump = g.maxClumpSizeExact(seedTao);
-            int maxClump = exactMaxClump; //For now, using the slow but precise calculation. Will test how far off the approximation is and possible switch which one we use
+            int maxClump = exactMaxClump; 
             int minClump = g.peekClumpSize(seedTao);
 
             //std::cout << "maxclump " << exactMaxClump << "minclump " << minClump << "sofar: " << sofar << "\n";
@@ -141,7 +145,7 @@ namespace rxtools {
                 }
             }
             if (bwSum == 0) { // this TAO belongs to a clump so small or so large that it can't contribute to the bins that need more trees
-                g.maxClumpSizeApprox(seedTao)--;
+                //g.maxClumpSizeApprox(seedTao)--;
                 g.cutTAO(seedTao);
                 continue;
             }
@@ -227,12 +231,12 @@ namespace rxtools {
             } //While(seedNode.clumpSize() > targN)
 
             //Cut the adjacent TAOs
-            g.maxClumpSizeApprox(seedTao) -= g.clumpSize(seedTao);
+            //g.maxClumpSizeApprox(seedTao) -= g.clumpSize(seedTao);
             for (size_t idx : inClump) {
                 for (size_t adj : g.nodes[idx].adjList) {
                     if (g.nodes[adj].status == ns::off) {
                         g.cutTAO(adj);
-                        g.maxClumpSizeApprox(seedTao)--;
+                        //g.maxClumpSizeApprox(seedTao)--;
                     }
                 }
             }
