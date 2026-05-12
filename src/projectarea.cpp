@@ -19,7 +19,7 @@ namespace rxtools {
 
         if (lmuPath.empty()) {
             std::cout << "\t\tCreating LMU's:\n";
-            lmuRaster = createLmuRasterFromTpiAndAsp(lidarDataset, lmuParam, projectPoly);
+            lmuRaster = createLmuRasterFromTpiAndAsp(lidarDataset, lmuParam);
             lmuIds = lapis::connectedComponents(lmuRaster, false);
             std::cout << "\t\tLMU creation done!\n";
             lmuRaster.writeRaster("G:/inyolmus.tif", "GTiff", std::numeric_limits<lapis::cell_t>::lowest(), GDT_UInt32);
