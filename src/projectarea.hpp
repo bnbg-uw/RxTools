@@ -54,6 +54,8 @@ namespace rxtools {
 
         template<class DATASET>
         void setTaos(DATASET taos, TaoGetters<DATASET> getters) {
+            if(allTaosInit)
+                throw std::runtime_error("Taos have already been initialized");
             allTaos = TaoList(taos, getters);
             allTaosInit = true;
         }
