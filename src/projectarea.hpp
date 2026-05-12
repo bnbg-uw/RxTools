@@ -53,10 +53,21 @@ namespace rxtools {
         TaoList& getTaos();
 
         template<class DATASET>
-        void setTaos(DATASET taos, TaoGetters<DATASET> getters) {
+        void setTaos(lapis::lico::TaoDbhGetter<DATASET> dbhGetter) {
             if(allTaosInit)
                 throw std::runtime_error("Taos have already been initialized");
-            allTaos = TaoList(taos, getters);
+
+            rxtools::TaoGetters<lapis::VectorDataset<lapis::Point>> getters = rxtools::TaoGetters<lapis::VectorDataset<lapis::Point>>(
+                lapis::lico::alwaysAdd<lapis::VectorDataset<lapis::Point>>,
+                projectArea.lidarDataset->coordGetter(),
+                projectArea.lidarDataset->heightGetter(),
+                projectArea.lidarDataset->radiusGetter(),
+                projectArea.lidarDataset->areaGetter(),
+                //TODO: at some point it would be good to not implicitly assume height units are not in meters.
+                dbhGetter
+            );
+
+            allTaos = TaoList(lidarDataset->allHighPoints(), getters);
             allTaosInit = true;
         }
 
