@@ -66,9 +66,10 @@ namespace rxtools {
         return Lmu(r, static_cast<LmuType>(type));
     }
 
-    lapis::Raster<lapis::cell_t> ProjectArea::createLmuRasterFromTpiAndAsp(std::unique_ptr<processedfolder::ProcessedFolder>& lds,
-                                                                   std::string terrain,
-                                                                   lapis::VectorDataset<lapis::MultiPolygon> projectPoly) {
+    lapis::Raster<lapis::cell_t> ProjectArea::createLmuRasterFromTpiAndAsp(
+        std::unique_ptr<processedfolder::ProcessedFolder>& lds,
+        std::string terrain
+    ) {
         double ridgeSep, canyonSep;
 
         int expSize = 0;
@@ -97,16 +98,8 @@ namespace rxtools {
         if (lds->type() == processedfolder::RunType::fusion) {
             tpi = tpi / 100; //technically, tpi needs to be converted to metric if elevation is in feet, but thats a you problem later...
         }
-        if (projectPoly.nFeature()) {
-            tpi = lapis::cropRaster(tpi, projectPoly.extent(), lapis::SnapType::out);
-            //tpi.mask(projectPoly);
-        }
 
         auto aspect = lapis::Raster<double>(processedfolder::stringOrThrow(lds->aspect(aspDist, lapis::linearUnitPresets::meter)));
-        if (projectPoly.nFeature()) {
-            aspect = lapis::cropRaster(aspect, projectPoly.extent(), lapis::SnapType::out);
-            //aspect.mask(projectPoly);
-        }
         aspect.mask(tpi);
         tpi.mask(aspect);
         tpi.writeRaster("G:/tpiconv.tif");
@@ -134,7 +127,6 @@ namespace rxtools {
                 ridgeGroup[c].has_value() = false;
             }
         }
-        ridgeGroup.writeRaster("G:/ridge.tif", "GTiff", std::numeric_limits<lapis::cell_t>::lowest(), GDT_UInt32);
         std::cout << "\t\t\tRidges identified.\n";
 
         //create canyon groups
@@ -160,7 +152,6 @@ namespace rxtools {
                 canyonGroup[c].has_value() = false;
             }
         }
-        canyonGroup.writeRaster("G:/canyon.tif", "GTiff", std::numeric_limits<lapis::cell_t>::lowest(), GDT_UInt32);
         std::cout << "\t\t\tValley bottoms identified.\n";
 
 
@@ -181,7 +172,6 @@ namespace rxtools {
             }
             spos[i].has_value() = true;
         }
-        spos.writeRaster("G:/spos.tif");
         std::cout << "\t\t\tSlope position identified.\n";
 
         // Code aspect, ready to be put into output lmu raster.
@@ -198,7 +188,6 @@ namespace rxtools {
                 }
             }
         }
-        aspectClassified.writeRaster("G:/aspclass.tif");
         std::cout << "\t\t\tAspect identified.\n";
 
 
@@ -219,7 +208,6 @@ namespace rxtools {
                 }
             }
         }
-        lmu.writeRaster("G:/lmu1.tif", "GTiff", std::numeric_limits<lapis::cell_t>::lowest(), GDT_UInt32);
         std::cout << "\t\t\tFirst pass LMU's identified. Beginning post-processing.\n";
 
         ///------------------
@@ -247,7 +235,6 @@ namespace rxtools {
         //a = pi*r^2, I'm not dividing by pi to leave buffer.
         auto lmuNibble = lapis::nibble(lmu, lmuGrp);
         std::cout << "\t\t\tNibbling done.\n";
-        lmuNibble.writeRaster("G:/lmuFinal.tif", "GTiff", std::numeric_limits<lapis::cell_t>::lowest(), GDT_UInt32);
         return lmuNibble;
     }
 
@@ -351,6 +338,15 @@ namespace rxtools {
                     }
                 }
             }
+        }
+    }
+
+    TaoList& ProjectArea::getTaos() {
+        if (allTaosInit) {
+            return allTaos;
+        }
+        else {
+            throw std::runtime_error("alltaos access before alltaos init.");
         }
     }
 }

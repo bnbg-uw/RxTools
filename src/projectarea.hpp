@@ -12,8 +12,7 @@ namespace rxtools {
     class ProjectArea {
     public:
         std::unique_ptr<processedfolder::ProcessedFolder> lidarDataset;
-        TaoList allTaos{};
-        bool allTaosInit = false;
+        
         lapis::VectorDataset<lapis::MultiPolygon> projectPoly;
 
         lapis::Raster<double> aet;
@@ -27,19 +26,41 @@ namespace rxtools {
 
         ProjectArea() = default;
         //lmu param can be moderate or steep
-        ProjectArea(std::string lidarDatasetPath, std::string projectPolygonPath, std::string aetPath, std::string cwdPath, std::string tmnPath, int nThread, std::string lmuPath = "", std::string lmuParam = "moderate");
+        ProjectArea(
+            std::string lidarDatasetPath,
+            std::string projectPolygonPath,
+            std::string aetPath,
+            std::string cwdPath,
+            std::string tmnPath,
+            int nThread,
+            std::string lmuPath = "",
+            std::string lmuParam = "moderate"
+        );
 
         //terrain can be moderate or steep.
         //units in lidar units.
-        lapis::Raster<lapis::cell_t> createLmuRasterFromTpiAndAsp(std::unique_ptr<processedfolder::ProcessedFolder>& lds,
-                                                            std::string terrain = "moderate",
-                                                            lapis::VectorDataset<lapis::MultiPolygon> projectPoly = lapis::VectorDataset<lapis::MultiPolygon>());
+        lapis::Raster<lapis::cell_t> createLmuRasterFromTpiAndAsp(
+            std::unique_ptr<processedfolder::ProcessedFolder>& lds,
+            std::string terrain = "moderate"
+            );
+
         void subdivideLmus(std::string climateClassPath, int nThread);
         int getIndex(int n);
         void divideLmusThread(int& sofar, std::mutex& mut, std::unordered_map<lapis::cell_t, int>& regionArea, lapis::Raster<lapis::cell_t>& lmus, lapis::Raster<lapis::cell_t>& newlmus, const int thisThread);
 
         Lmu createLmuThread(size_t& sofar, const int thisThread);
-        
+
+        TaoList& getTaos();
+
+        template<class DATASET>
+        void setTaos(DATASET taos, TaoGetters<DATASET> getters) {
+            allTaos = TaoList(taos, getters);
+            allTaosInit = true;
+        }
+
+    private:
+        TaoList allTaos{};
+        bool allTaosInit = false;
     };
 }  // namespace rxtools
 
