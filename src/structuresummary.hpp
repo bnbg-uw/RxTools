@@ -111,7 +111,7 @@ namespace rxtools {
     private:
         //MCS look up table to clump size distribution from Sean Jeronimo.
         //Columns: Mcs Min, Mcs Max, 1,  2to4, 5to9, 10to14, 15to29, 30+
-        double mcsTable[28][8] = {
+        static constexpr double mcsTable[28][8] = {
             {1,    1.25, 0.94, 0,    0,    0,    0.06, 0},
             {1.25, 1.5,  0.69, 0,    0,    0.02, 0.29, 0},
             {1.5,  1.75, 0.6,  0,    0.02, 0.01, 0.37, 0},
