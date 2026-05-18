@@ -34,6 +34,13 @@ namespace rxtools {
 
         const lapis::CoordRef& crs() const;
         void addTao(lapis::CoordXY xy, lapis::coord_t height, lapis::coord_t radius, lapis::coord_t area, lapis::coord_t dbh);
+
+        template<class DATASET>
+        void addDataset(DATASET t, TaoGetters<DATASET> g);
+
+        template<class DATASET>
+        void addDataset(std::string f, TaoGetters<DATASET> g);
+
         const size_t size() const;
 
         const lapis::CoordXY xy(size_t i) const;
@@ -74,6 +81,24 @@ namespace rxtools {
                 addTao(g.xy(f), g.height(f), g.radius(f), g.area(f), g.dbh(f));
             }
         }
+    }
+
+    template<class DATASET>
+    void TaoList::addDataset(DATASET t, TaoGetters<DATASET> g) {
+        if (!t.crs().isConsistent(_xy.crs)) {
+            throw std::runtime_error("CRS Mismatch");
+        }
+        for (auto f : t) {
+            if (g.predicate(f)) {
+                addTao(g.xy(f), g.height(f), g.radius(f), g.area(f), g.dbh(f));
+            }
+        }
+    }
+
+    template<class DATASET>
+    void TaoList::addDataset(std::string f, TaoGetters<DATASET> g) {
+        DATASET dataset(f);
+        addDataset(dataset, g);
     }
 } // namespace rxtools
 #endif //rxtools_taolist_h
