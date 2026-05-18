@@ -365,7 +365,7 @@ namespace rxtools {
         );
 
         rxtools::TaoList pts(lidarDataset->crs());
-        #pragma omp parallel for
+        #pragma omp parallel for num_threads(nThread)
         for (int i = 0; i < lidarDataset->nTiles(); i++) {
             std::cout << "Adding tile " + std::to_string(i) + "/" + std::to_string(lidarDataset->nTiles()) + " on thread " + std::to_string(omp_get_thread_num()) + ". Current ntaos: " + std::to_string(pts.size()) + "\n";
             if (!lidarDataset->highPoints(i).has_value())
@@ -377,7 +377,7 @@ namespace rxtools {
                 pts.addDataset(d, getters);
             }
         }
-        allTaos = TaoList(lidarDataset->allHighPoints(), getters);
+        allTaos = pts;
         allTaosInit = true;
     }
 }
