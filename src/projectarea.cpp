@@ -350,7 +350,7 @@ namespace rxtools {
         }
     }
 
-    void ProjectArea::setTaos(lapis::lico::TaoDbhGetter<lapis::VectorDataset<lapis::Point>> dbhGetter) {
+    void ProjectArea::setTaos(lapis::lico::TaoDbhGetter<lapis::VectorDataset<lapis::Point>> dbhGetter, int nThread) {
         if (allTaosInit)
             throw std::runtime_error("Taos have already been initialized");
 
@@ -364,6 +364,19 @@ namespace rxtools {
             dbhGetter
         );
 
+        rxtools::TaoList pts(lidarDataset->crs());
+        #pragma omp parallel for
+        for (int i = 0; i < lidarDataset->nTiles(); i++) {
+            std::cout << "Adding tile " + std::to_string(i) + "/" + std::to_string(lidarDataset->nTiles()) + " on thread " + std::to_string(omp_get_thread_num()) + ". Current ntaos: " + std::to_string(pts.size()) + "\n";
+            if (!lidarDataset->highPoints(i).has_value())
+                continue;
+            auto d = lapis::VectorDataset<lapis::Point>(lidarDataset->highPoints(i).value().string());
+
+            #pragma omp critical
+            {
+                pts.addDataset(d, getters);
+            }
+        }
         allTaos = TaoList(lidarDataset->allHighPoints(), getters);
         allTaosInit = true;
     }

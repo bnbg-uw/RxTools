@@ -52,7 +52,7 @@ namespace rxtools {
 
         TaoList& getTaos();
 
-        void setTaos(lapis::lico::TaoDbhGetter<lapis::VectorDataset<lapis::Point>> dbhGetter);
+        void setTaos(lapis::lico::TaoDbhGetter<lapis::VectorDataset<lapis::Point>> dbhGetter, int nThread);
 
     private:
         TaoList allTaos{};

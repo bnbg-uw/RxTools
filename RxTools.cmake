@@ -18,6 +18,7 @@ endif()
 
 find_package(Eigen3 REQUIRED)
 find_package(Boost REQUIRED COMPONENTS program_options)
+find_package(OpenMP REQUIRED)
 
 set(RXTOOLS_EXTERNAL_INCLUDES
 	${Eigen_INCLUDE_DIRS}
@@ -48,6 +49,7 @@ target_link_libraries(RxTools
         ${PROCESSEDFOLDER_LINKS}
         Eigen3::Eigen
         Boost::program_options
+	OpenMP::OpenMP_CXX
 )
 target_precompile_headers(RxTools PRIVATE ${RXTOOLS_DIR}/src/rxtools_pch.hpp)
 
