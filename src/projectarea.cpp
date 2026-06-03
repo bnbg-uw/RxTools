@@ -55,7 +55,7 @@ namespace rxtools {
         lapis::cell_t id = std::next(regionType.begin(), sofar)->first;
         lapis::cell_t type = std::next(regionType.begin(), sofar)->second;
         
-        std::cout << "\t Creating lmu " + std::to_string(sofar + 1) + "/" + std::to_string(regionType.size()) + " " + std::to_string(id) + " on thread " + std::to_string(thisThread) + "\n";
+        //std::cout << "\t Creating lmu " + std::to_string(sofar + 1) + "/" + std::to_string(regionType.size()) + " " + std::to_string(id) + " on thread " + std::to_string(thisThread) + "\n";
         auto r = lmuIds;
         for (lapis::cell_t c = 0; c < r.ncell(); ++c) {
             if (r[c].value() != id) {
@@ -341,7 +341,8 @@ namespace rxtools {
         }
     }
 
-    TaoList& ProjectArea::getTaos() {
+    // guaranteed to be tiles that overlap project poly, but taos outside project poly will not be cropped out.
+    std::vector<std::pair<lapis::Extent, TaoList>>& ProjectArea::getTaos() {
         if (allTaosInit) {
             return allTaos;
         }
@@ -364,17 +365,23 @@ namespace rxtools {
             dbhGetter
         );
 
-        rxtools::TaoList pts(lidarDataset->crs());
+        std::vector<std::pair<lapis::Extent, TaoList>> pts{};
         #pragma omp parallel for num_threads(nThread)
         for (int i = 0; i < lidarDataset->nTiles(); i++) {
             std::cout << "Adding tile " + std::to_string(i) + "/" + std::to_string(lidarDataset->nTiles()) + " on thread " + std::to_string(omp_get_thread_num()) + ". Current ntaos: " + std::to_string(pts.size()) + "\n";
+            auto e = lidarDataset->extentByTile(i);
+            if (!e.has_value())
+                continue;
+            if (!e.value().overlaps(projectPoly.extent()))
+                continue;
             if (!lidarDataset->highPoints(i).has_value())
                 continue;
+
             auto d = lapis::VectorDataset<lapis::Point>(lidarDataset->highPoints(i).value().string());
 
             #pragma omp critical
             {
-                pts.addDataset(d, getters);
+                pts.push_back(std::make_pair(e.value(), TaoList(d, getters)));
             }
         }
         allTaos = pts;

@@ -50,12 +50,12 @@ namespace rxtools {
 
         Lmu createLmuThread(size_t& sofar, const int thisThread);
 
-        TaoList& getTaos();
+        std::vector<std::pair<lapis::Extent, TaoList>>& getTaos();
 
         void setTaos(lapis::lico::TaoDbhGetter<lapis::VectorDataset<lapis::Point>> dbhGetter, int nThread);
 
     private:
-        TaoList allTaos{};
+        std::vector<std::pair<lapis::Extent, TaoList>> allTaos{};
         bool allTaosInit = false;
     };
 }  // namespace rxtools

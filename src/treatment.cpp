@@ -109,6 +109,7 @@ namespace rxtools {
 
         treatmentResult result = treatmentResult::success;
         if (currentba > targetba) result = treatmentResult::diameterFailure;
+
         //std::cout << "start of while loop: " << sofar << " " << sample.size() << " " << currentba << " " << targetba << "\n";
         while (sofar < sample.size() && currentba < targetba) {
             size_t seedTao = sample[sofar];
@@ -335,6 +336,7 @@ namespace rxtools {
                 }
             }
         }
+
         return std::tuple(keep, cut, result);
     }
 
@@ -417,6 +419,9 @@ namespace rxtools {
 
         Weights getWeightedOrderByRatios(lapis::lico::GraphLico& g, rxtools::StructureSummary targets, double area, std::default_random_engine& dre) {
 
+            if (targets.cc == 0 || targets.tph == 0) {
+                throw std::runtime_error("Cannot use getWeightedOrderByRatios if target cc or tph is 0");
+            }
             auto targettph = (targets.ba * area * 10000) / (targets.tph * area);
             auto targetcc =  (targets.ba * area * 10000) / (targets.cc * 10000 * area);
 
@@ -425,7 +430,8 @@ namespace rxtools {
                 double thisba = g.nodes[i].dbh / 2 / 100;
                 thisba *= thisba;
                 thisba *= M_PI;
-                weights[i] = std::abs(thisba - targettph) + std::abs(thisba / g.nodes[i].area - targetcc);
+                double score = std::abs(thisba - targettph) + std::abs(thisba / g.nodes[i].area - targetcc);
+                weights[i] = 1.0 / std::max(score, 1e-9);
             }
             std::vector<weightedNode> nodes(g.nodes.size());
             totalWeight(nodes, weights);
