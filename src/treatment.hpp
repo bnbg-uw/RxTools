@@ -64,6 +64,7 @@ namespace rxtools {
         //"diameterFailure" is if the treatment was unable to be undertaken because trees > diameter limit had more than the target BA.
         //"cuttingFailure" means that too many trees were cut and some had to be added back in due to residual BA being below target BA.
         std::tuple<TaoList, TaoList, treatmentResult> doTreatment(RxUnit rx, double dbhMin, double dbhMax, lapis::coord_t maxCrown, bool intermediates = false, std::string intermediatespath = "E:/treatedcsvs/");
+        std::tuple<TaoList, TaoList, treatmentResult> thinFromBelow(RxUnit rx, double dbhMax, bool intermediates = false, std::string intermediatespath = "E:/treatedcsvs/");
 
     private:
         // If a tree is within the limiting distance from a BB tree, then retaining that tree obligates you to retain the BB tree as well

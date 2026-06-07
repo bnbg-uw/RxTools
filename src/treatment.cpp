@@ -3,6 +3,14 @@
 namespace rxtools {
     using ns = lapis::lico::NodeStatus;
 
+    namespace {
+        struct ThinCandidate {
+            size_t index;
+            double dbh;
+            double ba;
+        };
+    }
+
     void Treatment::obligateIdx(TaoList& tl, std::vector<treatmentDecision>& treeStatus, std::vector<size_t>& treeIdx, size_t& focalIdx, std::unordered_set<size_t>& keepSet) {
         std::vector<size_t> testIdx; //These are idx in the total dataset to test as focals.
         
@@ -335,6 +343,77 @@ namespace rxtools {
                         rx.taos.dbh(i));
                 }
             }
+        }
+
+        return std::tuple(keep, cut, result);
+    }
+
+    std::tuple<TaoList, TaoList, treatmentResult> Treatment::thinFromBelow(
+        RxUnit rx, double dbhMax, bool intermediates, std::string intermediatespath)
+    {
+        const double targetba = rx.targetStructure.ba * rx.areaHa;
+        TaoList keep(rx.taos.crs());
+        TaoList cut(rx.taos.crs());
+
+        std::vector<ThinCandidate> eligible;
+        double retainedAboveLimitBa = 0;
+        double currentba = 0;
+
+        for (size_t i = 0; i < rx.taos.size(); ++i) {
+            const auto node = rx.taos.node(i);
+            currentba += node.ba;
+            if (rx.taos.dbh(i) > dbhMax) {
+                retainedAboveLimitBa += node.ba;
+            }
+            else {
+                eligible.push_back(ThinCandidate{ i, rx.taos.dbh(i), node.ba });
+            }
+        }
+
+        std::sort(eligible.begin(), eligible.end(), [](const ThinCandidate& lhs, const ThinCandidate& rhs) {
+            if (lhs.dbh == rhs.dbh) {
+                return lhs.index < rhs.index;
+            }
+            return lhs.dbh < rhs.dbh;
+        });
+
+        std::vector<bool> isCut(rx.taos.size(), false);
+        treatmentResult result = treatmentResult::success;
+        if (retainedAboveLimitBa > targetba) {
+            result = treatmentResult::diameterFailure;
+            for (const auto& tree : eligible) {
+                isCut[tree.index] = true;
+            }
+        }
+        else {
+            for (const auto& tree : eligible) {
+                if (currentba - tree.ba < targetba) {
+                    break;
+                }
+                currentba -= tree.ba;
+                isCut[tree.index] = true;
+            }
+        }
+
+        for (size_t i = 0; i < rx.taos.size(); ++i) {
+            TaoList& out = isCut[i] ? cut : keep;
+            out.addTao(rx.taos.xy(i),
+                rx.taos.height(i),
+                rx.taos.radius(i),
+                rx.taos.area(i),
+                rx.taos.dbh(i));
+        }
+
+        if (intermediates) {
+            rx.taos.writeCsv(intermediatespath + "-1.csv");
+
+            std::ofstream targetstream(intermediatespath + "targets.csv");
+            targetstream << std::setprecision(std::numeric_limits<double>::max_digits10);
+            targetstream << "target_ba,current_ba,result\n";
+            targetstream << targetba << "," << currentba << "," << static_cast<int>(result) << "\n";
+            targetstream.close();
+
+            keep.writeCsv(intermediatespath + "0.csv");
         }
 
         return std::tuple(keep, cut, result);
