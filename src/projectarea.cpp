@@ -22,8 +22,6 @@ namespace rxtools {
             lmuRaster = createLmuRasterFromTpiAndAsp(lidarDataset, lmuParam);
             lmuIds = lapis::connectedComponents(lmuRaster, false);
             std::cout << "\t\tLMU creation done!\n";
-            lmuRaster.writeRaster("G:/inyolmus.tif", "GTiff", std::numeric_limits<lapis::cell_t>::lowest(), GDT_UInt32);
-            lmuIds.writeRaster("G:/inyoids.tif", "GTiff", std::numeric_limits<lapis::cell_t>::lowest(), GDT_UInt32);
         }
         else {
             // check extents etc...
@@ -95,15 +93,13 @@ namespace rxtools {
         int aspDist = 135;
         // create ridge groups
         auto tpi = lapis::Raster<double>(processedfolder::stringOrThrow(lds->tpi(tpiDist, lapis::linearUnitPresets::meter)));
+        tpi = lapis::cropRaster(tpi, aet, lapis::SnapType::out);
         if (lds->type() == processedfolder::RunType::fusion) {
             tpi = tpi / 100; //technically, tpi needs to be converted to metric if elevation is in feet, but thats a you problem later...
         }
 
         auto aspect = lapis::Raster<double>(processedfolder::stringOrThrow(lds->aspect(aspDist, lapis::linearUnitPresets::meter)));
-        aspect.mask(tpi);
-        tpi.mask(aspect);
-        tpi.writeRaster("G:/tpiconv.tif");
-        aspect.writeRaster("G:/asp.tif");
+        aspect = lapis::cropRaster(aspect, aet, lapis::SnapType::out);
 
         auto ridge = tpi > ridgeSep;
         for (lapis::cell_t c = 0; c < ridge.ncell(); ++c) {
@@ -161,10 +157,10 @@ namespace rxtools {
             //canyon = 0
             //ridge = 1
             //slope = 2
-            if (canyon[i].has_value()) {
+            if (canyonGroup[i].has_value()) {
                 spos[i].value() = 0; // canyon
             }
-            else if (ridge[i].has_value()) {
+            else if (ridgeGroup[i].has_value()) {
                 spos[i].value() = 1; // ridge
             }
             else {
@@ -234,6 +230,7 @@ namespace rxtools {
         //max dist needed to look would be radius of the circle representing the largest removable LMU.
         //a = pi*r^2, I'm not dividing by pi to leave buffer.
         auto lmuNibble = lapis::nibble(lmu, lmuGrp);
+        lmuNibble = lapis::trimRaster(lmuNibble);
         std::cout << "\t\t\tNibbling done.\n";
         return lmuNibble;
     }
